@@ -23,9 +23,9 @@ export const registerInitializeHandler = (connection: Connection) => {
           },
           full: true,
         },
-        // completionProvider: {
-        //   triggerCharacters: ["@", "+"],
-        // },
+        completionProvider: {
+          triggerCharacters: ["@", "+"],
+        },
       },
       serverInfo: {
         name: NAME,

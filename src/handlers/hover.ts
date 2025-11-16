@@ -19,6 +19,7 @@ import {
   getDescriptionStart,
   DATA_BEFORE_DESCRIPTION_RE,
 } from "../parser/lexer";
+import { getRows } from "../parser/utils";
 
 const TODOTXT_DOC_URL =
   "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
@@ -33,7 +34,7 @@ const tokenTypeDocUrlMap: Record<TodotxtTokenType, string> = {
   description: `${TODOTXT_DOC_URL}#todotxt-format-rules`,
 };
 
-export const createHoverContent = (
+const createHoverContent = (
   token: string,
   tokenType: TodotxtTokenType,
 ): string => {
@@ -71,10 +72,10 @@ export const registerHoverHandler = (
     const doc = documents.get(params.textDocument.uri);
     if (!doc) return null;
 
-    const text = doc.getText();
-    const rows = text.split(/\r?\n/);
+    const rows: string[] = getRows(doc.getText());
+    const row: string = rows[params.position.line];
 
-    const tokens: IndexedToken[] = tokenizeLine(rows[params.position.line]);
+    const tokens: IndexedToken[] = tokenizeLine(row);
     const token: IndexedToken = getTokenAtPosition(
       tokens,
       params.position.character,

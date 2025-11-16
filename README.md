@@ -7,7 +7,7 @@ todo-ls is a language server for [todo.txt](http://todotxt.org/) files.
 
 Features:
 - [X] type annotations for all metadata defined by the standard
-- [ ] autocompletions for projects and contexts
+- [X] autocompletions for metadata
 - [ ] optional dates validation
 - [ ] CLI for oneshot checks
 - [ ] defining your own rules for your todo.txt files structure in config file
