@@ -3,10 +3,10 @@ import {
   Hover,
   Position,
   TextDocuments,
-  TextDocument,
   TextDocumentPositionParams,
   Range,
 } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { TodotxtTokenType } from "../parser/tokenTypes";
 import {
@@ -17,7 +17,6 @@ import {
 import {
   determineTodotxtTokenType,
   getDescriptionStart,
-  DATA_BEFORE_DESCRIPTION_RE,
 } from "../parser/lexer";
 import { getRows } from "../parser/utils";
 
@@ -41,6 +40,7 @@ const createHoverContent = (
   return `\`\`\`todo.txt
 (${tokenType}) ${token}
 \`\`\`
+___
 [Format spec](${tokenTypeDocUrlMap[tokenType]})`;
 };
 

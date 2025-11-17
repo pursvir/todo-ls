@@ -14,10 +14,12 @@ import {
   IndexedToken,
   tokenizeLine,
 } from "../parser/tokenizer";
+import { CONTEXT_RE, KV_RE, PROJECT_RE } from "../parser/regexps";
 
-const completionKindMap: Map<string, number> = new Map<string, number>([
-  ["@", CompletionItemKind.Function],
-  ["+", CompletionItemKind.Interface],
+const completionKindMap: Map<RegExp, number> = new Map<RegExp, number>([
+  [CONTEXT_RE, CompletionItemKind.Function],
+  [PROJECT_RE, CompletionItemKind.Interface],
+  // TODO: keyValue suggestion highlighting. Issue: ...
 ]);
 
 export const registerCompletionHandler = (
@@ -59,7 +61,8 @@ export const registerCompletionHandler = (
     return Array.from(completionSet).map(
       (word: string): CompletionItem => ({
         label: word,
-        kind: completionKindMap.get(triggerChars[0]) as CompletionItemKind,
+        // TODO: labelKind
+        kind: getCompletionKind(word),
         textEdit: {
           range: {
             start: { line: position.line, character: position.character - 1 },
@@ -70,6 +73,13 @@ export const registerCompletionHandler = (
       }),
     ) as CompletionItem[];
   });
+};
+
+const getCompletionKind = (triggerChars: string): CompletionItemKind => {
+  for (const [regexp, completionKind] of completionKindMap) {
+    if (regexp.test(triggerChars)) return completionKind as CompletionItemKind;
+  }
+  return 0 as CompletionItemKind;
 };
 
 const fillSetWithNeededTokens = (

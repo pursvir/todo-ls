@@ -4,21 +4,27 @@ import {
   TodotxtTokenTypes,
   TokenType,
 } from "../parser/tokenTypes";
+import {
+  COMPLETION_MARK_RE,
+  CONTEXT_RE,
+  DATE_RE,
+  KV_RE,
+  PRIORITY_RE,
+  PROJECT_RE,
+  DATA_BEFORE_DESCRIPTION_RE,
+} from "./regexps";
 
 export const tokenPatternMap: Map<TokenType, RegExp> = new Map<
   TokenType,
   RegExp
 >([
-  ["completionMark", /^x$/],
-  ["priority", /^\([A-Z]\) *$/],
-  ["date", /^\d{4}-\d{2}-\d{2}$/],
-  ["project", /^\+\S+$/],
-  ["context", /^@\S+$/],
-  ["keyValue", /^[^:\s]+\:[^:\s]+$/],
+  ["completionMark", COMPLETION_MARK_RE],
+  ["priority", PRIORITY_RE],
+  ["date", DATE_RE],
+  ["project", PROJECT_RE],
+  ["context", CONTEXT_RE],
+  ["keyValue", KV_RE],
 ]);
-
-export const DATA_BEFORE_DESCRIPTION_RE: RegExp =
-  /^(?:x(?: \d{4}-\d{2}-\d{2}){0,2} |(?:\([A-Z]\) )?(?:\d{4}-\d{2}-\d{2} )?)/;
 
 const getTokenEnd = (token: IndexedToken): number => {
   return token.start + token.token.length - 1;
