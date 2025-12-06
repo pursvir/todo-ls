@@ -2,15 +2,20 @@ todo-ls is a language server for [todo.txt](http://todotxt.org/) files.
 
 > [!WARNING]
 >
-> todo-ls is in active development and is not ready for production use yet!
-> Expect bugs.
+> todo-ls is WIP and is not ready for production use yet.
 
-Features:
+Features / goals:
 - [X] type annotations for all metadata defined by the standard
-- [X] autocompletions for metadata
-- [ ] optional dates validation
+- [~] autocompletions for metadata
+- [ ] plugin system
+    - [ ] date validation
+    - [ ] task format validation (e.g. contexts whitelists, key:value requirements for tasks containing certain metadata, etc..)
+    - [ ] checks for tasks with due: dates kvs
+    - [ ] writing your own one via simple, but powerful API
 - [ ] CLI for oneshot checks
-- [ ] defining your own rules for your todo.txt files structure in config file
+- [ ] cross-platform
+    - [~] desktop OSes
+    - [ ] web-browser
 - [ ] i18n (probably)
 
 # Building
@@ -26,6 +31,12 @@ Build:
 
 ```sh
 npm run build
+```
+
+Run unit tests:
+
+```sh
+npm run test
 ```
 
 Install (development):

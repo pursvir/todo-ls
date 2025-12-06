@@ -1,85 +1,103 @@
-import { IndexedToken } from "../parser/tokenizer";
+import { BEGINNING_TOKEN_PATTERNS, Token } from "../parser/tokenTypes";
+import { TodotxtTokenType, TokenPatternType } from "../parser/tokenTypes";
 import {
-  TodotxtTokenType,
-  TodotxtTokenTypes,
-  TokenType,
-} from "../parser/tokenTypes";
-import {
-  COMPLETION_MARK_RE,
-  CONTEXT_RE,
-  DATE_RE,
-  KV_RE,
-  PRIORITY_RE,
-  PROJECT_RE,
-  DATA_BEFORE_DESCRIPTION_RE,
+	COMPLETION_MARK_RE,
+	CONTEXT_RE,
+	DATE_RE,
+	KV_RE,
+	PRIORITY_RE,
+	PROJECT_RE,
 } from "./regexps";
+import { decodeTokenType } from "./utils";
+import { getTokenEnd } from "../tokenManager";
 
-export const tokenPatternMap: Map<TokenType, RegExp> = new Map<
-  TokenType,
-  RegExp
+export const tokenPatternMap: Map<TokenPatternType, RegExp> = new Map<
+	TokenPatternType,
+	RegExp
 >([
   ["completionMark", COMPLETION_MARK_RE],
   ["priority", PRIORITY_RE],
   ["date", DATE_RE],
   ["project", PROJECT_RE],
   ["context", CONTEXT_RE],
-  ["keyValue", KV_RE],
+	["keyValue", KV_RE],
 ]);
 
-const getTokenEnd = (token: IndexedToken): number => {
-  return token.start + token.token.length - 1;
-};
-
-const determineTokenType = (token: string): TokenType => {
+const determineTokenType = (token: string): TokenPatternType => {
   for (const [type, regex] of tokenPatternMap) {
     if (regex.test(token)) return type;
   }
   return "description";
 };
 
-export const determineTodotxtTokenType = (
-  token: IndexedToken,
-  tokens: IndexedToken[],
-): TodotxtTokenType => {
-  let todotxtType: TodotxtTokenType;
-  let tokenType: TokenType = determineTokenType(token.token);
-  if (tokenType === "date") {
-    const tokenIndex = tokens.indexOf(token);
-    if (tokenIndex === 0) todotxtType = "creationDate";
-    else if (tokenIndex === 1) {
-      const previousToken = tokens[tokenIndex - 1];
-      if (token.start - getTokenEnd(previousToken) === 2) {
-        if (determineTokenType(previousToken.token) === "completionMark") {
-          todotxtType = "completionDate";
-        } else if (determineTokenType(previousToken.token) === "priority") {
-          todotxtType = "creationDate";
-        }
-      } else {
-        todotxtType = "description";
-      }
-    } else if (tokenIndex === 2) {
-      const previousToken = tokens[tokenIndex - 1];
-      const firstToken = tokens[tokenIndex - 2];
-      if (
-        token.start - getTokenEnd(previousToken) === 2 &&
-        previousToken.start - getTokenEnd(firstToken) === 2 &&
-        determineTokenType(previousToken.token) === "date" &&
-        determineTokenType(firstToken.token) === "completionMark"
-      ) {
-        todotxtType = "creationDate";
-      } else {
-        todotxtType = "description";
-      }
-    } else {
-      todotxtType = "description";
-    }
-  } else {
-    todotxtType = tokenType as TodotxtTokenType;
-  }
-  return todotxtType;
+const getOnLineIndex = (tokens: Token[], tokenLine: number): number => {
+  let onLineIndex: number = tokens.length - 1;
+  while (
+    onLineIndex > -1 && tokens[onLineIndex]?.line === tokenLine
+  )
+    onLineIndex--;
+  return tokens.length - 1 - onLineIndex;
 };
 
-export const getDescriptionStart = (row: string): number => {
-  const dataMatch = row.match(DATA_BEFORE_DESCRIPTION_RE);
-  return dataMatch ? dataMatch[0].length : 0;
+export const determineTodotxtTokenType = (
+	tokenContent: string,
+	tokenLine: number,
+	tokenChar: number,
+	tokens: Token[],
+): TodotxtTokenType => {
+	let todotxtType: TodotxtTokenType;
+
+	const onLineIndex: number = getOnLineIndex(tokens, tokenLine);
+	let tokenPatternType: TokenPatternType = determineTokenType(tokenContent);
+
+	if (tokenPatternType === "date") {
+		if (tokenChar === 0) {
+			todotxtType = "creationDate";
+		} else if (onLineIndex === 1) {
+			const previousToken: Token = tokens[onLineIndex - 1];
+			if (tokenChar - getTokenEnd(previousToken) === 1) {
+				const previousTokenTypeName: TodotxtTokenType = decodeTokenType(
+					previousToken.tokenType,
+				);
+				if (previousTokenTypeName === "completionMark") {
+					todotxtType = "completionDate";
+				} else if (previousTokenTypeName === "priority") {
+					todotxtType = "creationDate";
+				} else {
+					todotxtType = "description";
+				}
+			} else {
+				todotxtType = "description";
+			}
+		} else if (onLineIndex === 2) {
+			const secondToken: Token = tokens[onLineIndex - 1];
+			const firstToken: Token = tokens[onLineIndex - 2];
+			if (
+				tokenChar - getTokenEnd(secondToken) === 1 &&
+				decodeTokenType(secondToken.tokenType) === "completionDate" &&
+				secondToken.character - getTokenEnd(firstToken) === 1 &&
+				decodeTokenType(firstToken.tokenType) === "completionMark"
+			) {
+				todotxtType = "creationDate";
+			} else {
+				todotxtType = "description";
+			}
+		} else {
+			todotxtType = "description";
+		}
+	} else {
+		const beginningPatternIndex: number =
+			BEGINNING_TOKEN_PATTERNS.indexOf(tokenPatternType);
+		if (beginningPatternIndex === -1) {
+			todotxtType = tokenPatternType as TodotxtTokenType;
+		} else {
+			if (tokenChar === 0)
+				todotxtType = BEGINNING_TOKEN_PATTERNS[
+					beginningPatternIndex
+				] as TodotxtTokenType;
+			else
+				todotxtType = "description";
+		}
+	}
+	return todotxtType;
 };

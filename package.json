@@ -4,7 +4,7 @@
         "lsp",
         "todo.txt"
     ],
-    "version": "0.2.0",
+    "version": "0.3.0",
     "homepage": "https://github.com/pursvir/todo-ls",
     "description": "LSP server for todo.txt files",
     "license": "MIT",
@@ -18,7 +18,7 @@
         "preinstall": "tsc",
         "postinstall": "sed -i '1i #!/usr/bin/env node' ./dist/index.js && chmod +x ./dist/index.js",
         "build": "tsc",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "npx jest"
     },
     "dependencies": {
         "node-fetch": "^2.7.0",
@@ -27,8 +27,11 @@
         "vscode-languageserver-textdocument": "^1.0.12"
     },
     "devDependencies": {
+        "@types/jest": "^30.0.0",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
+        "jest": "^30.2.0",
+        "ts-jest": "^29.4.6",
         "typescript": "^5.9.3"
     },
     "files": [

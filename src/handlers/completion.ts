@@ -3,76 +3,79 @@ import {
   CompletionItemKind,
   CompletionParams,
   Connection,
-  TextDocumentPositionParams,
   TextDocuments,
 } from "vscode-languageserver";
-import { Position, TextDocument } from "vscode-languageserver-textdocument";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getRows } from "../parser/utils";
+import { Token } from "../parser/tokenTypes";
 import {
-  getTokenAtPosition,
-  IndexedToken,
-  tokenizeLine,
-} from "../parser/tokenizer";
-import { CONTEXT_RE, KV_RE, PROJECT_RE } from "../parser/regexps";
+  getIndexAtPosition,
+  positionIsInsideToken,
+  retrieveDocTokens,
+} from "../tokenManager";
+import { CONTEXT_RE, PROJECT_RE, KEY_WITH_COLON_RE } from "../parser/regexps";
 
 const completionKindMap: Map<RegExp, number> = new Map<RegExp, number>([
   [CONTEXT_RE, CompletionItemKind.Function],
   [PROJECT_RE, CompletionItemKind.Interface],
-  // TODO: keyValue suggestion highlighting. Issue: ...
+  // TODO: keyValue suggestion highlighting.
 ]);
 
 export const registerCompletionHandler = (
   connection: Connection,
   documents: TextDocuments<TextDocument>,
 ): void => {
-  connection.onCompletion((params: CompletionParams): CompletionItem[] => {
-    const completionSet: Set<string> = new Set<string>();
+  connection.onCompletion(
+    (params: CompletionParams): CompletionItem[] | null => {
+      const doc = documents.get(params.textDocument.uri);
+      if (!doc) return null;
 
-    const doc: TextDocument = documents.get(params.textDocument.uri);
-    if (!doc) return [];
+      const docTokens = retrieveDocTokens(doc) as Token[];
+      const currentToken: Token =
+        docTokens[getIndexAtPosition(docTokens, params.position)];
 
-    const position: Position = params.position;
-    let rows: string[] = getRows(doc.getText());
-    const currentLineTokens: IndexedToken[] = tokenizeLine(rows[position.line]);
-    const currentToken: string = getTokenAtPosition(
-      currentLineTokens,
-      position.character,
-    ).token;
+      const completionSet: Set<string> = new Set<string>();
+      let triggerChars: string;
 
-    let triggerChars: string;
-    if (params.context.triggerKind === 2) {
-      triggerChars = params.context.triggerCharacter;
-      if (currentToken !== triggerChars) {
-        triggerChars = currentToken;
+      if (params.context?.triggerKind === 2) {
+        if (!positionIsInsideToken(params.position, currentToken)) {
+          triggerChars = params.context.triggerCharacter as string;
+        } else {
+          triggerChars = currentToken.content;
+          fillCompletionSet(completionSet, currentToken, triggerChars);
+        }
+      } else if (params.context?.triggerKind === 1) {
+        triggerChars = currentToken.content;
+        fillCompletionSet(completionSet, currentToken, triggerChars);
       }
-    } else if (params.context.triggerKind === 1) {
-      triggerChars = currentToken;
-      fillSetWithNeededTokens(completionSet, currentLineTokens, triggerChars);
-      rows = [
-        ...rows.slice(0, position.line),
-        ...rows.slice(position.line + 1),
-      ];
-    }
-    rows.forEach((row: string) => {
-      fillSetWithNeededTokens(completionSet, tokenizeLine(row), triggerChars);
-    });
+      // TODO: triggerKind === 3
 
-    return Array.from(completionSet).map(
-      (word: string): CompletionItem => ({
-        label: word,
-        // TODO: labelKind
-        kind: getCompletionKind(word),
-        textEdit: {
-          range: {
-            start: { line: position.line, character: position.character - 1 },
-            end: { line: position.line, character: position.character },
+      docTokens.forEach((token: Token) => {
+        fillCompletionSet(completionSet, token, triggerChars);
+      });
+
+      return Array.from(completionSet).map(
+        (word: string): CompletionItem => ({
+          label: word,
+          // TODO: labelKind
+          kind: getCompletionKind(word),
+          textEdit: {
+            range: {
+              start: {
+                line: params.position.line,
+                character: params.position.character - 1,
+              },
+              end: {
+                line: params.position.line,
+                character: params.position.character,
+              },
+            },
+            newText: word,
           },
-          newText: word,
-        },
-      }),
-    ) as CompletionItem[];
-  });
+        }),
+      ) as CompletionItem[];
+    },
+  );
 };
 
 const getCompletionKind = (triggerChars: string): CompletionItemKind => {
@@ -82,14 +85,18 @@ const getCompletionKind = (triggerChars: string): CompletionItemKind => {
   return 0 as CompletionItemKind;
 };
 
-const fillSetWithNeededTokens = (
+const fillCompletionSet = (
   set: Set<string>,
-  tokens: IndexedToken[],
-  triggerChar: string,
+  token: Token,
+  startChars: string,
 ): void => {
-  tokens.forEach((token: IndexedToken) => {
-    if (token.token.startsWith(triggerChar)) {
-      set.add(token.token);
+  let keyMatch: RegExpMatchArray | null;
+  // TODO: complete with current date YYYY-MM-DD if starts with its parts
+  if (token.content.startsWith(startChars)) {
+    if ((keyMatch = token.content.match(KEY_WITH_COLON_RE))) {
+      set.add(keyMatch[0]);
+    } else {
+      set.add(token.content);
     }
-  });
+  }
 };
