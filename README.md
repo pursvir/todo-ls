@@ -33,7 +33,7 @@ Build:
 npm run build
 ```
 
-Run unit tests:
+Run tests:
 
 ```sh
 npm run test

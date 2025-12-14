@@ -18,7 +18,8 @@
         "preinstall": "tsc",
         "postinstall": "sed -i '1i #!/usr/bin/env node' ./dist/index.js && chmod +x ./dist/index.js",
         "build": "tsc",
-        "test": "npx jest"
+        "test": "npx jest",
+        "lint": "npx eslint"
     },
     "dependencies": {
         "node-fetch": "^2.7.0",
@@ -30,6 +31,9 @@
         "@types/jest": "^30.0.0",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
+        "@typescript-eslint/eslint-plugin": "^8.49.0",
+        "@typescript-eslint/parser": "^8.49.0",
+        "eslint": "^9.39.1",
         "jest": "^30.2.0",
         "ts-jest": "^29.4.6",
         "typescript": "^5.9.3"

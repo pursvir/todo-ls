@@ -9,7 +9,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { Token, TodotxtTokenType } from "../parser/tokenTypes";
 import { decodeTokenType, encodeTokenType } from "../parser/utils";
-import { retrieveDocTokens, getIndexAtPosition, getTokenEnd } from "../tokenManager";
+import { retrieveDocTokens, getIndexAtPosition, getTokenEnd } from "../tokenctl/utils";
 
 const TODOTXT_DOC_URL =
   "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
@@ -52,13 +52,13 @@ const getCoverageInterval = (tokens: Token[], index: number): [number, number] =
       && tokens[start - 1]?.line === tokens[index].line
       && BEGINNING_TOKEN_PATTERNS.indexOf(tokens[start - 1].tokenType) === -1;
       start--
-    ) {}
+    ) {} // eslint-disable-line no-empty
 
     for (;
       end < tokens.length - 1
       && tokens[end + 1]?.line === tokens[index].line;
       end++
-    ) {}
+    ) {} // eslint-disable-line no-empty
   }
 
   return [start, end];
@@ -109,11 +109,8 @@ export const registerHoverHandler = (
 		if (!docTokens) return null;
 
     const tokenIndex: number = getIndexAtPosition(
-      docTokens,
-      params.position,
-      false
-		);
-    // connection.console.debug(`index at position: ${tokenIndex}`);
+      docTokens, params.position, false
+		)[0];
     const currentToken: Token = docTokens[tokenIndex];
     if (!currentToken) return null;
 
@@ -126,12 +123,15 @@ export const registerHoverHandler = (
       contents: {
         kind: "markdown",
         value: createHoverContent(
+          // 0,
           currentToken.tokenType,
+          // "aboba",
            tokenTypeName,
-           `${tokenIntervalStart} ${tokenIntervalEnd}`
-          	// tokenTypeName === "description"
-           	// ? getTokenIntervalText(docTokens, tokenIntervalStart, tokenIntervalEnd)
-            // : currentToken.content
+           // `${tokenIntervalStart} ${tokenIntervalEnd}`
+           // `${tokenIndex}`
+          tokenTypeName === "description"
+          ? getTokenIntervalText(docTokens, tokenIntervalStart, tokenIntervalEnd)
+          : currentToken.content
         )
       },
       range: getTokenRange(

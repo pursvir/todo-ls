@@ -8,8 +8,8 @@ import {
 	PRIORITY_RE,
 	PROJECT_RE,
 } from "./regexps";
-import { decodeTokenType } from "./utils";
-import { getTokenEnd } from "../tokenManager";
+import { decodeTokenType, encodeTokenType } from "./utils";
+import { getTokenEnd } from "../tokenctl/utils";
 
 export const tokenPatternMap: Map<TokenPatternType, RegExp> = new Map<
 	TokenPatternType,
@@ -31,11 +31,12 @@ const determineTokenType = (token: string): TokenPatternType => {
 };
 
 const getOnLineIndex = (tokens: Token[], tokenLine: number): number => {
-  let onLineIndex: number = tokens.length - 1;
-  while (
-    onLineIndex > -1 && tokens[onLineIndex]?.line === tokenLine
-  )
-    onLineIndex--;
+  let onLineIndex: number;
+  for (
+    onLineIndex = tokens.length - 1;
+    onLineIndex > -1 && tokens[onLineIndex]?.line === tokenLine;
+    onLineIndex--
+  ) {} // eslint-disable-line no-empty
   return tokens.length - 1 - onLineIndex;
 };
 
@@ -44,12 +45,11 @@ export const determineTodotxtTokenType = (
 	tokenLine: number,
 	tokenChar: number,
 	tokens: Token[],
-): TodotxtTokenType => {
+): number => {
 	let todotxtType: TodotxtTokenType;
 
 	const onLineIndex: number = getOnLineIndex(tokens, tokenLine);
 	let tokenPatternType: TokenPatternType = determineTokenType(tokenContent);
-
 	if (tokenPatternType === "date") {
 		if (tokenChar === 0) {
 			todotxtType = "creationDate";
@@ -99,5 +99,5 @@ export const determineTodotxtTokenType = (
 				todotxtType = "description";
 		}
 	}
-	return todotxtType;
+	return encodeTokenType(todotxtType);
 };

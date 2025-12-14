@@ -1,15 +1,15 @@
-import { SemanticTokensLegend } from "vscode-languageserver";
+import { SemanticTokensLegend, uinteger } from "vscode-languageserver";
 
 /* Not vscode's SemanticTokens, but similar. */
 export interface Token {
-  line: number;
-  character: number;
+  line: uinteger;
+  character: uinteger;
   content: string;
-  tokenType: number;
+  tokenType: number; // TODO: add constraints
   tokenModifiers: number;
 }
 
-const TokenPatternTypes = [
+const TokenPatternTypes = [ // eslint-disable-line @typescript-eslint/no-unused-vars
   "description",
   "priority",
   "date",
@@ -17,7 +17,7 @@ const TokenPatternTypes = [
   "project",
   "context",
   "keyValue",
-] as const;
+];
 
 export type TokenPatternType = (typeof TokenPatternTypes)[number];
 

@@ -12,7 +12,7 @@ import {
   getIndexAtPosition,
   positionIsInsideToken,
   retrieveDocTokens,
-} from "../tokenManager";
+} from "../tokenctl/utils";
 import { CONTEXT_RE, PROJECT_RE, KEY_WITH_COLON_RE } from "../parser/regexps";
 
 const completionKindMap: Map<RegExp, number> = new Map<RegExp, number>([
@@ -20,6 +20,29 @@ const completionKindMap: Map<RegExp, number> = new Map<RegExp, number>([
   [PROJECT_RE, CompletionItemKind.Interface],
   // TODO: keyValue suggestion highlighting.
 ]);
+
+const getCompletionKind = (triggerChars: string): CompletionItemKind => {
+  for (const [regexp, completionKind] of completionKindMap) {
+    if (regexp.test(triggerChars)) return completionKind as CompletionItemKind;
+  }
+  return 0 as CompletionItemKind;
+};
+
+const fillCompletionSet = (
+  set: Set<string>,
+  token: Token,
+  startChars: string,
+): void => {
+  let keyMatch: RegExpMatchArray | null;
+  // TODO: complete with current date YYYY-MM-DD if starts with its parts
+  if (token.content.startsWith(startChars)) {
+    if ((keyMatch = token.content.match(KEY_WITH_COLON_RE))) {
+      set.add(keyMatch[0]);
+    } else {
+      set.add(token.content);
+    }
+  }
+};
 
 export const registerCompletionHandler = (
   connection: Connection,
@@ -32,7 +55,7 @@ export const registerCompletionHandler = (
 
       const docTokens = retrieveDocTokens(doc) as Token[];
       const currentToken: Token =
-        docTokens[getIndexAtPosition(docTokens, params.position)];
+        docTokens[getIndexAtPosition(docTokens, params.position)[0]];
 
       const completionSet: Set<string> = new Set<string>();
       let triggerChars: string;
@@ -76,27 +99,4 @@ export const registerCompletionHandler = (
       ) as CompletionItem[];
     },
   );
-};
-
-const getCompletionKind = (triggerChars: string): CompletionItemKind => {
-  for (const [regexp, completionKind] of completionKindMap) {
-    if (regexp.test(triggerChars)) return completionKind as CompletionItemKind;
-  }
-  return 0 as CompletionItemKind;
-};
-
-const fillCompletionSet = (
-  set: Set<string>,
-  token: Token,
-  startChars: string,
-): void => {
-  let keyMatch: RegExpMatchArray | null;
-  // TODO: complete with current date YYYY-MM-DD if starts with its parts
-  if (token.content.startsWith(startChars)) {
-    if ((keyMatch = token.content.match(KEY_WITH_COLON_RE))) {
-      set.add(keyMatch[0]);
-    } else {
-      set.add(token.content);
-    }
-  }
 };
