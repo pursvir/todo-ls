@@ -4,7 +4,8 @@ import {
   DidOpenTextDocumentParams,
   DidCloseTextDocumentParams,
   TextDocumentContentChangeEvent,
-  TextDocuments
+  TextDocuments,
+  DidSaveTextDocumentParams
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
@@ -17,7 +18,7 @@ import { Token } from "../parser/tokenTypes";
 import { tokenCache, retrieveDocTokens } from "../tokenctl/utils";
 
 
-export const registerFileOpenHandler = (connection: Connection) => {
+export const registerFileOpenHandler = (connection: Connection): void => {
   connection.onDidOpenTextDocument(
     (params: DidOpenTextDocumentParams): void => {
       tokenCache.set(
@@ -28,7 +29,7 @@ export const registerFileOpenHandler = (connection: Connection) => {
   );
 };
 
-export const registerFileCloseHandler = (connection: Connection) => {
+export const registerFileCloseHandler = (connection: Connection): void => {
   connection.onDidCloseTextDocument(
     (params: DidCloseTextDocumentParams): void => {
       // TODO: sometimes it may be useful to leave it in the cache.
@@ -40,7 +41,7 @@ export const registerFileCloseHandler = (connection: Connection) => {
 export const registerFileChangeHandler = (
   connection: Connection,
   documents: TextDocuments<TextDocument>,
-) => {
+): void => {
   connection.onDidChangeTextDocument(
     (params: DidChangeTextDocumentParams): void => {
       const doc = documents.get(params.textDocument.uri);
@@ -58,7 +59,19 @@ export const registerFileChangeHandler = (
         }
       );
 
+      connection.console.debug(`Changed doc tokens: ${JSON.stringify(docTokens)}`);
       tokenCache.set(params.textDocument.uri, docTokens);
     },
   );
 };
+
+// export const registerFileSaveHandler = (
+//   connection: Connection,
+//   documents: TextDocuments<TextDocument>
+// ) => {
+//   connection.onDidSaveTextDocument(
+//     (params: DidSaveTextDocumentParams): void => {
+//       tokenCache.set(params.textDocument.uri, getTokenizedText(params.textDocument.text))
+//     }
+//   )
+// }

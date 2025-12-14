@@ -67,38 +67,51 @@ export const deltaChangeTokens = (
 
   // Split token, if needed
   let splitWasPerformed: boolean = false;
+  let innerCutIsNeeded: boolean = false;
   if (
     spliceStartIndex === spliceEndIndex
     && startIsInsideAToken && endIsInsideAToken
   ) {
-    splitWasPerformed = true;
-    tokens.splice(spliceStartIndex, 1, ...Array(2).fill(0).map(() => { return structuredClone(tokens[spliceStartIndex]) }));
-    spliceEndIndex++;
-    console.debug(`Split tokens! Here are those: ${JSON.stringify(tokens)}`);
+    if (pastedTokens.length > 0) {
+      splitWasPerformed = true;
+      tokens.splice(spliceStartIndex, 1, ...Array(2).fill(0).map(() => { return structuredClone(tokens[spliceStartIndex]) }));
+      spliceEndIndex++;
+      console.debug(`Split tokens! Here are those: ${JSON.stringify(tokens)}`);
+    } else {
+      innerCutIsNeeded = true;
+    }
   }
 
   let spliceDeleteCount: number =
     spliceEndIndex - spliceStartIndex - (splitWasPerformed ? 1 : 0);
 
   // Cutting tokens' content based on change.range borders
-  if (startIsInsideAToken) {
+  if (innerCutIsNeeded) {
     tokens[spliceStartIndex].content =
       tokens[spliceStartIndex].content.slice(
-        0, change.range.start.character - tokens[spliceStartIndex].character
+        0, change.range.start.character
+      ) + tokens[spliceStartIndex].content.slice(
+        change.range.end.character
       );
-  }
-  if (endIsInsideAToken) {
-    tokens[spliceEndIndex].content =
-      tokens[spliceEndIndex].content.slice(
-        change.range.end.character - tokens[spliceEndIndex].character
-      );
-    tokens[spliceEndIndex].character = change.range.end.character;
+  } else {
+    if (startIsInsideAToken) {
+      tokens[spliceStartIndex].content =
+        tokens[spliceStartIndex].content.slice(
+          0, change.range.start.character - tokens[spliceStartIndex].character
+        );
+    }
+    if (endIsInsideAToken) {
+      tokens[spliceEndIndex].content =
+        tokens[spliceEndIndex].content.slice(
+          change.range.end.character - tokens[spliceEndIndex].character
+        );
+      tokens[spliceEndIndex].character = change.range.end.character;
+    }
   }
   console.debug("Cut old tokens:", tokens);
 
   // Merging first and last pasted tokens data with surrounding old ones, if needed
   let spliceDeleteExtra: number = 0;
-  let lastTokenMerged: boolean = false;
   if (pastedTokens.length > 0) {
     let mergedToken: Token = tryMergeTokens(
       tokens[spliceStartIndex], pastedTokens[0]
@@ -112,7 +125,6 @@ export const deltaChangeTokens = (
         pastedTokens[pastedTokens.length - 1], tokens[spliceEndIndex]
       );
       if (pastedTokens[pastedTokens.length - 1] !== mergedToken) {
-        lastTokenMerged = true;
         spliceDeleteExtra++;
         pastedTokens[pastedTokens.length - 1] = mergedToken;
       }
@@ -121,11 +133,11 @@ export const deltaChangeTokens = (
   console.debug("Final pasted tokens:", pastedTokens);
 
   console.debug(`Splice start: ${spliceStartIndex}, delete count: ${spliceDeleteCount}, items: ${pastedTokens}`);
-  const shiftStartSub: number = tokens.splice(
+  tokens.splice(
     spliceStartIndex,
     spliceDeleteCount + spliceDeleteExtra,
     ...pastedTokens,
-  ).length;
+  );
 
   // Changing token types in the area of token joint, if needed.
   if (spliceStartIndex < tokens.length) {
@@ -139,7 +151,7 @@ export const deltaChangeTokens = (
 
   // Shifting .line and .char attributes of the rest of the tokens.
   for (
-    let i: number = spliceEndIndex - spliceDeleteCount + pastedTokens.length;
+    let i: number = spliceEndIndex - spliceDeleteCount + pastedTokens.length + (innerCutIsNeeded ? 1 : 0);
     i < tokens.length;
     i++
   ) {
