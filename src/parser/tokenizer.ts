@@ -1,8 +1,12 @@
-import { determineTodotxtTokenType } from "./lexer";
+import { determineTokenType } from "./lexer";
 import { Token } from "./tokenTypes";
+import { getLines } from "./utils";
 
-const tokenPattern: RegExp = /\S+/g;
+const TOKEN_PATTERN: RegExp = /\S+/g;
 
+/**
+ * Convert individual `text` line into a `Token[]` array. `lineOffset` and `charOffset` arguments are optional.
+ */
 const tokenizeLine = (
   text: string,
   targetLine: number = 0,
@@ -11,19 +15,13 @@ const tokenizeLine = (
   const tokens: Token[] = [];
   let match: RegExpExecArray | null;
 
-  while ((match = tokenPattern.exec(text)) !== null) {
+  while ((match = TOKEN_PATTERN.exec(text)) !== null) {
     const newTokenChar: number = match.index + charOffset;
     const newToken: Token = {
       line: targetLine,
       character: newTokenChar,
       content: match[0],
-      tokenType: determineTodotxtTokenType(
-        match[0],
-        targetLine,
-        newTokenChar,
-        tokens,
-      ),
-      tokenModifiers: 0,
+      tokenType: determineTokenType(match[0], targetLine, newTokenChar, tokens),
     };
     tokens.push(newToken);
   }
@@ -31,13 +29,10 @@ const tokenizeLine = (
   return tokens;
 };
 
-const LINES_RE: RegExp = /\r?\n/;
-
-export const getLines = (text: string): string[] => {
-  return text.split(LINES_RE);
-};
-
-export const getTokenizedText = (
+/**
+ * Convert `text` into a `Token[]` array. `lineOffset` and `charOffset` arguments are optional.
+ */
+export const tokenizeText = (
   text: string,
   lineOffset: number = 0,
   charOffset: number = 0,

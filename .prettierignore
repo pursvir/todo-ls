@@ -1,7 +1,0 @@
-src/handlers/change.ts
-src/handlers/hover.ts
-src/parser/lexer.ts
-src/parser/tokenTypes.ts
-tests/**/*.ts
-src/tokenManager.ts
-src/tokenctl/*.ts

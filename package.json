@@ -4,9 +4,9 @@
         "lsp",
         "todo.txt"
     ],
-    "version": "0.3.0",
+    "version": "0.2.1",
     "homepage": "https://github.com/pursvir/todo-ls",
-    "description": "LSP server for todo.txt files",
+    "description": "LSP server implementation for todo.txt files.",
     "license": "MIT",
     "author": "pursvir",
     "type": "commonjs",
@@ -16,9 +16,8 @@
     },
     "scripts": {
         "preinstall": "tsc",
-        "postinstall": "sed -i '1i #!/usr/bin/env node' ./dist/index.js && chmod +x ./dist/index.js",
-        "build": "tsc",
-        "test": "npx jest",
+        "build": "tsc && npx add-shebang",
+        "format": "npx prettier --write src/",
         "lint": "npx eslint"
     },
     "dependencies": {
@@ -28,23 +27,24 @@
         "vscode-languageserver-textdocument": "^1.0.12"
     },
     "devDependencies": {
-        "@types/jest": "^30.0.0",
+        "@eslint/js": "^10.0.1",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
-        "@typescript-eslint/eslint-plugin": "^8.49.0",
-        "@typescript-eslint/parser": "^8.49.0",
-        "eslint": "^9.39.1",
-        "jest": "^30.2.0",
-        "ts-jest": "^29.4.6",
+        "@typescript-eslint/eslint-plugin": "^8.60.1",
+        "@typescript-eslint/parser": "^8.60.1",
+        "add-shebang": "^0.1.0",
+        "eslint": "^10.4.1",
+        "prettier": "^3.8.3",
         "typescript": "^5.9.3"
     },
     "files": [
-        "/dist",
+        "dist/",
+        "README.md",
         "LICENSE",
         "CHANGELOG.md"
     ],
-    "main": "index.js",
+    "main": "dist/index.js",
     "bin": {
-        "todo-ls": "./dist/index.js"
+        "todo-ls": "dist/index.js"
     }
 }

@@ -1,11 +1,6 @@
-import { legend, TodotxtTokenType, TodotxtTokenTypes } from "./tokenTypes";
+const LINES_RE: RegExp = /\r?\n/;
 
-export const encodeTokenType = (type: TodotxtTokenType): number => {
-	let ind: number = TodotxtTokenTypes.indexOf(type);
-	if (ind === -1) throw new Error("Incorrect token type!");
-	return ind;
-};
-
-export const decodeTokenType = (tokenCode: number): TodotxtTokenType => {
-	return legend.tokenTypes[tokenCode];
+/** A helper function for splitting `text` by newlines. */
+export const getLines = (text: string): string[] => {
+  return text.split(LINES_RE);
 };

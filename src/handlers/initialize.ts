@@ -7,6 +7,7 @@ import {
 
 import { TodotxtTokenTypes } from "../parser/tokenTypes";
 import { NAME, VERSION } from "../info";
+import { firstYearDigit } from "./completion";
 
 export const registerInitializeHandler = (connection: Connection) => {
   connection.onInitialize((params: InitializeParams): InitializeResult => {
@@ -24,8 +25,7 @@ export const registerInitializeHandler = (connection: Connection) => {
           full: true,
         },
         completionProvider: {
-          triggerCharacters: ["@", "+", ":", "x"],
-          // "allCommitCharacters": [ " " ],
+          triggerCharacters: [firstYearDigit, "(", "@", "+", ":", "x"],
         },
       },
       serverInfo: {

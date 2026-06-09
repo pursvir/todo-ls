@@ -1,9 +1,11 @@
-0.3 (06.12.25)
+0.3 (09.06.26)
 
-- Changed document token format, caching tokens, cache delta updates (textDocument/didChange) support.
+- Complete token format refactoring, caching document tokens.
 - Fixed various lexer errors.
-- Provided unit tests for text tokenizing and token position walking.
-- Improved completions for key:values. 
+- Add document diagnostics, analyzing, by default:
+    - there are no creation dates later than today
+    - there are completion dates for completed tasks
+- Add basic config file.
 
 0.2 (16.11.25)
 
