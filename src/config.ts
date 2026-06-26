@@ -1,16 +1,53 @@
 import fs from "fs";
 import { connection } from "./server";
 
-interface TodolsConfig {
-  enableHighlighting: boolean;
-  enableCompletions: boolean;
-  enableDiagnostics: boolean;
+import { DiagnosticSeverity } from "vscode-languageserver";
+
+interface DiagnosticsConfig {
+  enabled: boolean,
+  severity: DiagnosticSeverity,
 }
 
+/** todo-ls config fields. */
+interface TodolsConfig {
+  features: {
+    highlightingEnabled: boolean,
+    completionsEnabled: boolean,
+    diagnosticsEnabled: boolean,
+  },
+  diagnostics: {
+    futureCreationDatesBlaming: DiagnosticsConfig,
+    futureCompletionDatesBlaming: DiagnosticsConfig,
+    noCompletionDatesBlaming: DiagnosticsConfig,
+    noCreationDatesBlaming: DiagnosticsConfig,
+  }
+}
+
+/** The default todo-ls config, being applied if no config file is found or if it's invalid. */
 const defaultConfig: TodolsConfig = {
-  enableHighlighting: true,
-  enableCompletions: true,
-  enableDiagnostics: true,
+  features: {
+    highlightingEnabled: true,
+    completionsEnabled: true,
+    diagnosticsEnabled: true,
+  },
+  diagnostics: {
+    futureCreationDatesBlaming: {
+      enabled: true,
+      severity: DiagnosticSeverity.Error,
+    },
+    futureCompletionDatesBlaming: {
+      enabled: true,
+      severity: DiagnosticSeverity.Error,
+    },
+    noCompletionDatesBlaming: {
+      enabled: true,
+      severity: DiagnosticSeverity.Error,
+    },
+    noCreationDatesBlaming: {
+      enabled: true,
+      severity: DiagnosticSeverity.Error,
+    },
+  }
 };
 
 // if no args were passed
@@ -25,6 +62,7 @@ try {
   // TODO: forbid arbitrary fields
   config = {
     ...defaultConfig,
+    // TODO: we could allow comments inside config files if we write some regex substitutions before parsing JSON.
     ...JSON.parse(fs.readFileSync(configPath, "utf-8")),
   } as TodolsConfig;
   connection.console.debug(`Loaded config`);

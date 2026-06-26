@@ -40,6 +40,12 @@ Lint:
 npm run lint
 ```
 
+Test:
+
+```sh
+npm run test
+```
+
 # Configuration
 
 For configuration, place `.todols.conf` file into your TODO_DIR. todo-ls will automatically recognize it and change behaviour.

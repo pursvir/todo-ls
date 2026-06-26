@@ -25,17 +25,17 @@ export const documents: TextDocuments<TextDocument> = new TextDocuments(
 import { config } from "./config";
 
 registerInitializeHandler(connection);
-if (config.enableHighlighting) {
+if (config.features.highlightingEnabled) {
   registerHoverHandler(connection, documents);
 }
-if (config.enableCompletions) {
+if (config.features.completionsEnabled) {
   registerCompletionHandler(connection, documents);
 }
 registerFileOpenHandler(connection);
 registerFileCloseHandler(connection);
 registerFileChangeHandler(connection, documents);
 
-if (config.enableDiagnostics) {
+if (config.features.diagnosticsEnabled) {
   registerDocumentOpenHandler(connection, documents);
   registerDocumentChangeHandler(connection, documents);
 }

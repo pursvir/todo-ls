@@ -10,6 +10,7 @@ import {
 } from "./regexps";
 import { decodeTokenType, encodeTokenType } from "./tokenEncoder";
 import { getTokenEnd } from "../utils/tokenUtils";
+import { getIndexOnLine } from "./utils";
 
 export const tokenPatternMap: Map<PatternType, RegExp> = new Map<
   PatternType,
@@ -26,24 +27,11 @@ export const tokenPatternMap: Map<PatternType, RegExp> = new Map<
 /**
  * Returns determined pattern type of token.
  */
-const determinePatternType = (token: string): PatternType => {
+export const determinePatternType = (token: string): PatternType => {
   for (const [type, regex] of tokenPatternMap) {
     if (regex.test(token)) return type;
   }
   return "common";
-};
-
-/**
- * Returns index of first token on a specified `tokenLine`, treating new line start as a search entry point (0).
- */
-export const getIndexOnLine = (tokens: Token[], tokenLine: number): number => {
-  let onLineIndex: number;
-  for (
-    onLineIndex = tokens.length - 1;
-    onLineIndex > -1 && tokens[onLineIndex]?.line === tokenLine;
-    onLineIndex--
-  ) {} // eslint-disable-line no-empty
-  return tokens.length - 1 - onLineIndex;
 };
 
 /**
@@ -56,14 +44,14 @@ export const determineTokenType = (
   tokens: Token[],
 ): number => {
   let todotxtType: TodotxtTokenType;
-
-  const onLineIndex: number = getIndexOnLine(tokens, line);
+  const idxOnLine: number = getIndexOnLine(tokens, line);
   let tokenPatternType: PatternType = determinePatternType(content);
+
   if (tokenPatternType === "date") {
     if (character === 0) {
       todotxtType = "creationDate";
-    } else if (onLineIndex === 1) {
-      const previousToken: Token = tokens[onLineIndex - 1];
+    } else if (idxOnLine === 1) {
+      const previousToken: Token = tokens[idxOnLine - 1];
       if (character - getTokenEnd(previousToken) === 1) {
         const previousTokenTypeName: TodotxtTokenType = decodeTokenType(
           previousToken.tokenType,
@@ -78,9 +66,9 @@ export const determineTokenType = (
       } else {
         todotxtType = "common";
       }
-    } else if (onLineIndex === 2) {
-      const secondToken: Token = tokens[onLineIndex - 1];
-      const firstToken: Token = tokens[onLineIndex - 2];
+    } else if (idxOnLine === 2) {
+      const secondToken: Token = tokens[idxOnLine - 1];
+      const firstToken: Token = tokens[idxOnLine - 2];
       if (
         character - getTokenEnd(secondToken) === 1 &&
         decodeTokenType(secondToken.tokenType) === "completionDate" &&

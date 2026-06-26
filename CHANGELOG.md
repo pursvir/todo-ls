@@ -1,4 +1,10 @@
-0.3 (09.06.26)
+0.3.1 (09.06.2026)
+
+- Improved completions
+- Completions for documents' key-value tags
+- ...
+
+0.3 (08.06.26)
 
 - Complete token format refactoring, caching document tokens.
 - Fixed various lexer errors.

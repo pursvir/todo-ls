@@ -1,5 +1,25 @@
 {
-  "enableHighlighting": true,
-  "enableCompletions": true,
-  "enableDiagnostics": true,
+  "features": {
+    "highlightingEnabled": true,
+    "completionsEnabled": true,
+    "diagnosticsEnabled": true
+  },
+  "diagnostics": {
+    "futureCreationDatesBlaming": {
+        "enabled": true,
+        "severity": 1
+    },
+    "futureCompletionDatesBlaming": {
+        "enabled": true,
+        "severity": 1
+    },
+    "noCompletionDatesBlaming": {
+        "enabled": true,
+        "severity": 1
+    },
+    "noCreationDatesBlaming": {
+      "enabled": false,
+      "severity": 1
+    }
+  }
 }
