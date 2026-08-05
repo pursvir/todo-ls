@@ -1,86 +1,173 @@
-import { Connection, Diagnostic } from "vscode-languageserver";
+import { Diagnostic } from "vscode-languageserver";
 
-import { Token } from "../parser/tokenTypes";
+import { TodotxtTokenType, Token } from "../parser/tokenTypes";
 import { generateISODate } from "../utils/dateUtils";
 import {
-  diagnoseCreationDateError,
-  diagnoseCompletionDateError,
-  diagnoseMissingCompletionDateError,
+  diagnoseInvalidCreationDateToken,
+  diagnoseInvalidCompletionDateToken,
+  diagnoseDuplicateProject,
+  diagnoseDuplicateContext,
+  diagnoseDuplicateKey,
+  diagnoseMissingDescription,
+  diagnoseMissingCompletionDate,
+  diagnoseRedundantWhitespaces,
+  diagnoseInvalidCompletionChronology,
 } from "./diagnosis";
-import { rangeBetweenTokens, rangeForToken } from "../utils/tokenUtils";
+import { getKey, getTokenEnd } from "../utils/tokenUtils";
 
-//** Analyze document to find errors. */
-export const analyzeDocument = (
-  tokens: Token[] | undefined,
-  documentURI: string,
-  connection: Connection,
+import { storage } from "../server";
+import { TextDocument } from "vscode-languageserver-textdocument";
+
+// TODO: this is complete antipattern code... In the future, those functions **should** return Diagnostic or nothing.
+
+const analyzeForDuplicateTags = (
+  token: Token,
+  uniqueTags: Record<string, Set<string>>,
+  diagnostics: Diagnostic[]
 ): void => {
-  // if document tokens are not loaded into cache yet
-  if (!tokens) return;
+  switch (token.tokenType) {
+    case TodotxtTokenType.Project:
+      if (uniqueTags.projects.has(token.content)) {
+        diagnostics.push(diagnoseDuplicateProject(token));
+      } else {
+        uniqueTags.projects.add(token.content);
+      }
+      break;
+    case TodotxtTokenType.Context:
+      if (uniqueTags.contexts.has(token.content)) {
+        diagnostics.push(diagnoseDuplicateContext(token));
+      } else {
+        uniqueTags.contexts.add(token.content);
+      }
+      break;
+    case TodotxtTokenType.KeyValue:
+      const key: string = getKey(token);
+      if (uniqueTags.keys.has(key)) {
+        diagnostics.push(diagnoseDuplicateKey(token));
+      } else {
+        uniqueTags.keys.add(key);
+      }
+      break;
+  };
+};
+
+/** Returns `token`'s last character. */
+const analyzeForRedundantWhitespaces = (
+  token: Token,
+  lastChar: number,
+  diagnostics: Diagnostic[]
+): number => {
+  if (token.character - lastChar >= 2)
+    diagnostics.push(diagnoseRedundantWhitespaces(
+      token.line, lastChar, token.character,
+    ));
+  return getTokenEnd(token);
+};
+
+/** Returns `true` if token is invalid creation date. */
+const analyzeForInvalidCreationDate = (
+  token: Token,
+  today: string,
+  diagnostics: Diagnostic[],
+): boolean => {
+  if (
+    token.tokenType === TodotxtTokenType.CreationDate
+    && token.content > today
+  ) {
+    diagnostics.push(diagnoseInvalidCreationDateToken(token));
+    return true;
+  }
+  return false;
+}
+
+const analyzeForInvalidCompletionDate = (
+  token: Token,
+  today: string,
+  diagnostics: Diagnostic[],
+): void => {
+  if (
+    token.tokenType === TodotxtTokenType.CompletionDate
+    && token.content > today
+  ) {
+      diagnostics.push(diagnoseInvalidCompletionDateToken(token));
+  }
+};
+
+/** Analyze document to find errors. */
+export const analyzeDocument = (
+  document: TextDocument,
+): Diagnostic[] => {
+  const tokens: Token[][] | undefined = storage.get(document);
+  if (!tokens) return [];
 
   const diagnostics: Diagnostic[] = [];
-  // TODO: if a document is open and not changed for many hours, this can become outdated.
+  // TODO: if a document is open and not changed for many hours, this may become outdated.
   const today: string = generateISODate();
 
-  let completionMarkToken: Token | null = null;
-  let lastCompletionLineToken: Token | null = null;
-  let compDateWasPresent: boolean = false;
+  tokens.forEach((tokenLine: Token[], line: number): void => {
+    const isEmptyLine: boolean = tokenLine.length === 0;
+    let descriptionIsPresent: boolean = false;
 
-  tokens.forEach((token: Token) => {
-    if (completionMarkToken) {
-      if (token.line !== completionMarkToken.line) {
-        if (!compDateWasPresent) {
-          // Original todo.txt standard requires you to set (completion) date after completion mark -
-          //  https://github.com/todotxt/todo.txt#rule-2-the-date-of-completion-appears-directly-after-the-x-separated-by-a-space
-          // and, by default, if it's not present, this language server sends diagnostics error for the line num corresponding with that task.
-          diagnostics.push(
-            diagnoseMissingCompletionDateError(
-              // @ts-expect-error TS2345
-              rangeBetweenTokens(completionMarkToken, lastCompletionLineToken),
-            ),
-          );
-        }
+    const uniqueTags: Record<string, Set<string>> = {
+      projects: new Set<string>(),
+      contexts: new Set<string>(),
+      keys: new Set<string>(),
+    };
 
-        completionMarkToken = null;
-        lastCompletionLineToken = null;
-        compDateWasPresent = false;
-      } else {
-        lastCompletionLineToken = token;
+    let compMark: Token | null = null;
+    let compDate: Token | null = null;
+    let creationDate: Token | null = null;
+
+    let lastChar: number = 0;
+
+    tokenLine.forEach((token: Token): void => {
+      // TODO: analyze for duplicate tasks
+      // TODO: we should prohibit \t's
+
+      switch (token.tokenType) {
+        case TodotxtTokenType.Common:
+          descriptionIsPresent = true;
+          break;
+        case TodotxtTokenType.CompletionMark:
+          compMark = token;
+          break;
+        case TodotxtTokenType.CompletionDate:
+          compDate = token;
+          break;
       }
+
+      analyzeForDuplicateTags(token, uniqueTags, diagnostics);
+
+      analyzeForInvalidCreationDate(token, today, diagnostics);
+      analyzeForInvalidCompletionDate(token, today, diagnostics);
+
+      // TODO: check whitespaces after the last token
+      lastChar = analyzeForRedundantWhitespaces(token, lastChar, diagnostics);
+    });
+
+    if (compMark && (!compDate)) {
+      diagnostics.push(
+        diagnoseMissingCompletionDate(
+          // TODO: why is compMark.line's type is never?
+          line, tokenLine,
+        ),
+      );
     }
 
-    if (
-      // completion mark
-      token.tokenType === 4
-    ) {
-      completionMarkToken = token;
-    } else if (token.tokenType === 2 && token.content > today) {
-      diagnostics.push(diagnoseCreationDateError(rangeForToken(token)));
-    } else if (token.tokenType === 3) {
-      if (completionMarkToken) {
-        compDateWasPresent = true;
-      }
-      if (token.content > today) {
-        diagnostics.push(diagnoseCompletionDateError(rangeForToken(token)));
-      }
+    if ((compDate && creationDate) && (creationDate > compDate)) {
+      diagnostics.push(
+        diagnoseInvalidCompletionChronology(
+          compDate, creationDate,
+        )
+      );
+    }
+
+    if (!descriptionIsPresent && !isEmptyLine) {
+      diagnostics.push(
+        diagnoseMissingDescription(line, tokenLine)
+      );
     }
   });
 
-  // TODO: DRY violation
-  if (completionMarkToken && (!compDateWasPresent)) {
-    diagnostics.push(
-      diagnoseMissingCompletionDateError(
-        // @ts-expect-error TS2345
-        rangeBetweenTokens(completionMarkToken, lastCompletionLineToken),
-      ),
-    );
-  }
-
-  connection.console.debug(
-    `Found ${diagnostics.length} error while scanning document`,
-  );
-  connection.sendDiagnostics({
-    uri: documentURI,
-    diagnostics: diagnostics,
-  });
-};
+  return diagnostics;
+}

@@ -1,4 +1,4 @@
-import { determineTokenType } from "./lexer";
+import { determineTokenType } from "./parser";
 import { Token } from "./tokenTypes";
 import { getLines } from "./utils";
 
@@ -36,10 +36,10 @@ export const tokenizeText = (
   text: string,
   lineOffset: number = 0,
   charOffset: number = 0,
-): Token[] => {
+): Token[][] => {
   const textLines: string[] = getLines(text);
-  const tokens: Token[] = tokenizeLine(textLines[0], lineOffset, charOffset);
+  const tokens: Token[][] = [tokenizeLine(textLines[0], lineOffset, charOffset)];
   for (let i: number = 1; i < textLines.length; i++)
-    tokens.push(...tokenizeLine(textLines[i], lineOffset + i, 0));
+    tokens.push([...tokenizeLine(textLines[i], lineOffset + i, 0)]);
   return tokens;
 };

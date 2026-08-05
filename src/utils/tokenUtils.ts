@@ -1,28 +1,6 @@
-import { TextDocument } from "vscode-languageserver-textdocument";
-
-import { tokenizeText } from "../parser/tokenizer";
 import { Token } from "../parser/tokenTypes";
 import { Position, Range } from "vscode-languageserver";
-
-/** Cache for `document`s' tokens.
- * Keys are documents' URIs, values are `Token[]` lists, always sorted in ascending order. */
-export const tokenCache: Map<string, Token[]> = new Map<string, Token[]>();
-
-/** Key-value documents' key cache. Used for completion suggestions. */
-const keyCache: Map<string, Set<string>> = new Map<string, Set<string>>;
-
-/**
- * Cache document's tokens and return them.
- * @param doc - TextDocument itself
- * @returns list of Tokens
- */
-export const getDocTokens = (doc: TextDocument): Token[] => {
-  // if (!tokenCache.get(doc.uri)) {
-  tokenCache.set(doc.uri, tokenizeText(doc.getText()));
-  // }
-  // @ts-expect-error: TS2322
-  return tokenCache.get(doc.uri);
-};
+import { KEY_WITH_COLON_RE } from "../parser/regexps";
 
 /**
  * A helper function which returns `token`'s character end.
@@ -34,7 +12,7 @@ export const getTokenEnd = (token: Token): number => {
 /**
  * Calculate a `Range` a `token` takes.
  */
-export const rangeForToken = (token: Token): Range => {
+export const tokenRange = (token: Token): Range => {
   return {
     start: {
       line: token.line,
@@ -66,10 +44,34 @@ export const rangeBetweenTokens = (
   };
 };
 
+export const lineRange = (line: number, tokens: Token[]): Range => {
+  if (tokens.length === 0) {
+    return {
+      start: {
+        line: line,
+        character: 0,
+      }, end: {
+        line: line,
+        character: 0,
+      }
+    }
+  }
+  return {
+    start: {
+      line: line,
+      character: 0,
+    }, end: {
+      line: line,
+      character: getTokenEnd(tokens[tokens.length - 1])
+    }
+  }
+};
+
 const comparePositions = (position: Position, token: Token): number => {
-  if (position.line !== token.line) return position.line - token.line;
-  return token.character <= position.character &&
+  return (
+    token.character <= position.character &&
     position.character <= getTokenEnd(token)
+  )
     ? 0
     : position.character - token.character;
 };
@@ -100,32 +102,31 @@ export interface TokenPointer {
  * @param forSplice whether an index is needed for token insert (`true`) or to find the token match (`false`).
  * @returns the result `TokenPointer`.
  */
-export const getIndexAtPosition = (
-  tokens: Token[],
+export const getPositionIndex = (
+  lineTokens: Token[],
   position: Position,
   forSplice: boolean = true,
 ): TokenPointer => {
-  let left: number = 0;
-  let right = tokens.length - 1;
-
-  if (right < 0) {
+  if (lineTokens.length === 0) {
     return {
       index: 0,
       isInsideToken: false,
-    } as TokenPointer;
+    } satisfies TokenPointer;
   }
 
-  // This is a binary search adaptation for token list
-  // and for calculating indexes of objects as if they were present in the list (for future splices).
-  // NOTE: I'm not sure this algorithm is correct in all use cases (it's vibe coded...).
+  let left: number = 0;
+  let right = lineTokens.length - 1;
+
+  // Binary search adaptation for token list,
+  // which supports both searching of existing element index and insertion one.
   while (left <= right) {
     let mid: number = Math.floor((left + right) / 2);
 
-    let cmp: number = comparePositions(position, tokens[mid]);
+    let cmp: number = comparePositions(position, lineTokens[mid]);
     if (cmp === 0) {
       return {
         index: mid,
-        isInsideToken: positionIsInsideToken(position, tokens[mid]),
+        isInsideToken: true,
       } as TokenPointer;
     } else if (cmp > 0) {
       left = mid + 1;
@@ -136,9 +137,14 @@ export const getIndexAtPosition = (
 
   if (forSplice) {
     const isInside: boolean =
-      left < tokens.length && positionIsInsideToken(position, tokens[left]);
+      left < lineTokens.length && positionIsInsideToken(position, lineTokens[left]);
     return { index: left, isInsideToken: isInside };
   } else {
     return { index: -1, isInsideToken: false };
   }
 };
+
+export const getKey = (token: Token): string => {
+  // @ts-expect-error
+  return token.content.match(KEY_WITH_COLON_RE)[0];
+}

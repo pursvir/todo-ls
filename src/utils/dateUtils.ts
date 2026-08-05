@@ -10,10 +10,14 @@ export const generateISODate = (dayShift: number = 0): string => {
     .slice(0, 10);
 };
 
+export const getYearFirstDigit = (): string => {
+  return generateISODate().slice(0, 1);
+};
+
 /**
  * @returns an hour-, minute- and seconds-unaware date object.
  */
 export const getToday = (): Date => {
-  const dt = new Date();
+  const dt: Date = new Date();
   return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }

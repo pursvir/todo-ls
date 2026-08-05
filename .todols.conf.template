@@ -2,24 +2,41 @@
   "features": {
     "highlightingEnabled": true,
     "completionsEnabled": true,
-    "diagnosticsEnabled": true
+    "diagnosticsEnabled": true,
+    "codeActionsEnabled": true
   },
   "diagnostics": {
+    "duplicateTags": {
+      "enabled": true,
+      "severity": 1
+    },
     "futureCreationDatesBlaming": {
-        "enabled": true,
-        "severity": 1
+      "enabled": true,
+      "severity": 1
     },
     "futureCompletionDatesBlaming": {
-        "enabled": true,
-        "severity": 1
+      "enabled": true,
+      "severity": 1
     },
     "noCompletionDatesBlaming": {
-        "enabled": true,
-        "severity": 1
+      "enabled": true,
+      "severity": 1
     },
     "noCreationDatesBlaming": {
       "enabled": false,
       "severity": 1
+    },
+    "invalidCompletionChronology": {
+      "enabled": true,
+      "severity": 1
+    },
+    "noDescriptionBlaming": {
+      "enabled": true,
+      "severity": 2
+    },
+    "redundantWhitespaces": {
+      "enabled": true,
+      "severity": 2
     }
   }
 }

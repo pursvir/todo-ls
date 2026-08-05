@@ -1,20 +1,36 @@
+# todo-ls
+
 Todo LS is a language server for [todo.txt](http://todotxt.org/) files.
 
 > [!WARNING]
 >
 > This project is WIP and is not ready for production usage yet!
 
+# Features
+
 Features / goals:
-- [X] type annotations for all metadata defined by the standard
-- [~] autocompletions for metadata
-- [ ] date validation
-- [ ] optional checks for tasks with `due:` date key-value tags
-- [ ] optional task duplication checks
-- [ ] optional tag duplication checks inside tasks
-- [ ] custom rules
-    - [ ] task format validation (e.g. contexts whitelists, key:value requirements for tasks containing certain metadata, etc..)
-    - [ ] writing your own one via simple, but powerful API
-- [ ] CLI for oneshot checks
+
+| Feature                                                   | Status         |
+| :-----:                                                   | :-----:        |
+| Hover (tag type annotations)                              | ✅             |          
+| Completions                                               | ✅             |
+| Diagnostics (read more in [here](...))                    | ✅             |
+| Configuration (read more in [configuration](...) section) | ✅             |
+| Formatting                                                | in the future  |
+| Code actions                                              | in the future  |
+| "Linting"                                                 | in the future  |
+| Plugin system                                             | in the future  | 
+| Semantic tokens                                           | ?              |
+| Go to definitions                                         | 🚫             |
+
+## Diagnostics
+
+Todo-ls includes those analysis scenarios:
+- 
+
+## Plugin system
+
+In development...
 
 # Installation
 

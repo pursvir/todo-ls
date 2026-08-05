@@ -3,30 +3,26 @@ import {
   InitializeResult,
   TextDocumentSyncKind,
   Connection,
+  CodeActionKind,
 } from "vscode-languageserver/node";
 
-import { TodotxtTokenTypes } from "../parser/tokenTypes";
 import { NAME, VERSION } from "../info";
-import { firstYearDigit } from "./completion";
 
-export const registerInitializeHandler = (connection: Connection) => {
+export let initOptionsConfig: any;
+
+export const registerInitializeHandler = (connection: Connection): void => {
   connection.onInitialize((params: InitializeParams): InitializeResult => {
-    const capabilities = params.capabilities;
-
     const initResult: InitializeResult = {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         hoverProvider: true,
-        semanticTokensProvider: {
-          legend: {
-            tokenTypes: [...TodotxtTokenTypes],
-            tokenModifiers: [],
-          },
-          full: true,
-        },
         completionProvider: {
-          triggerCharacters: [firstYearDigit, "(", "@", "+", ":", "x"],
+          triggerCharacters: ["@", "+"],
         },
+        codeActionProvider: {
+          resolveProvider: false,
+          codeActionKinds: [CodeActionKind.QuickFix],
+        }
       },
       serverInfo: {
         name: NAME,
@@ -34,12 +30,14 @@ export const registerInitializeHandler = (connection: Connection) => {
       },
     };
 
-    if (capabilities.workspace && capabilities.workspace.workspaceFolders)
-      initResult.capabilities.workspace = {
-        workspaceFolders: {
-          supported: true,
-        },
-      };
+    // if (capabilities.workspace && capabilities.workspace.workspaceFolders)
+    //   initResult.capabilities.workspace = {
+    //     workspaceFolders: {
+    //       supported: true,
+    //     },
+    //   };
+
+    initOptionsConfig = params.initializationOptions;
 
     return initResult;
   });

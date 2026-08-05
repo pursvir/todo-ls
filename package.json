@@ -4,7 +4,7 @@
         "lsp",
         "todo.txt"
     ],
-    "version": "0.2.1",
+    "version": "0.3-alpha",
     "homepage": "https://github.com/pursvir/todo-ls",
     "description": "LSP server implementation for todo.txt files.",
     "license": "MIT",
@@ -23,22 +23,19 @@
     },
     "dependencies": {
         "node-fetch": "^2.7.0",
-        "vscode-languageclient": "^9.0.1",
+        "vscode-languageclient": "^10.1.0",
         "vscode-languageserver": "^9.0.1",
-        "vscode-languageserver-textdocument": "^1.0.12"
+        "vscode-languageserver-textdocument": "^1.0.13"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/jest": "^30.0.0",
+        "@types/node": "^26.1.2",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
         "@typescript-eslint/eslint-plugin": "^8.60.1",
         "@typescript-eslint/parser": "^8.60.1",
-        "add-shebang": "^0.1.0",
         "eslint": "^10.4.1",
-        "jest": "^30.4.2",
         "prettier": "^3.8.3",
-        "ts-jest": "^29.4.11",
         "typescript": "^5.9.3"
     },
     "files": [
@@ -50,5 +47,9 @@
     "main": "dist/index.js",
     "bin": {
         "todo-ls": "dist/index.js"
+    },
+    "allowScripts": {
+        "unrs-resolver@1.12.2": true,
+        "todo-ls": true
     }
 }

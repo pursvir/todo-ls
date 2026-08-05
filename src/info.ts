@@ -1,2 +1,2 @@
 export const NAME: string = "todo-ls";
-export const VERSION: string = "0.3";
+export const VERSION: string = "0.3-alpha";

@@ -7,28 +7,27 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { Token } from "../parser/tokenTypes";
-import { encodeTokenType } from "../parser/tokenEncoder";
+import { TodotxtTokenType, Token } from "../parser/tokenTypes";
 import {
-  getDocTokens,
-  getIndexAtPosition,
+  getPositionIndex,
   getTokenEnd,
 } from "../utils/tokenUtils";
 import { TokenPointer } from "../utils/tokenUtils";
-import { tokenTypeReprs } from "../parser/tokenTypeReprs";
+import { TodotxtTokenTypes } from "../parser/tokenTypes";
+import { storage } from "../server";
 
-const docUrlRoot = "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
+const DOC_URL_ROOT: string = "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
 
 // String indexes correspond to tokenType numbers.
 const tokenTypeUrls: string[] = [
-  `${docUrlRoot}#todotxt-format-rules`,
-  `${docUrlRoot}#rule-1-if-priority-exists-it-always-appears-first`,
-  `${docUrlRoot}#rule-2-a-tasks-creation-date-may-optionally-appear-directly-after-priority-and-a-space`,
-  `${docUrlRoot}#rule-2-the-date-of-completion-appears-directly-after-the-x-separated-by-a-space`,
-  `${docUrlRoot}#complete-tasks-2-format-rules`,
-  `${docUrlRoot}#project`,
-  `${docUrlRoot}#context`,
-  `${docUrlRoot}#additional-file-format-definitions`,
+  `${DOC_URL_ROOT}#todotxt-format-rules`,
+  `${DOC_URL_ROOT}#rule-1-if-priority-exists-it-always-appears-first`,
+  `${DOC_URL_ROOT}#rule-2-a-tasks-creation-date-may-optionally-appear-directly-after-priority-and-a-space`,
+  `${DOC_URL_ROOT}#rule-2-the-date-of-completion-appears-directly-after-the-x-separated-by-a-space`,
+  `${DOC_URL_ROOT}#complete-tasks-2-format-rules`,
+  `${DOC_URL_ROOT}#project`,
+  `${DOC_URL_ROOT}#context`,
+  `${DOC_URL_ROOT}#additional-file-format-definitions`,
 ];
 
 /**
@@ -38,7 +37,7 @@ const tokenTypeUrls: string[] = [
  * @returns - Markdown text.
  */
 const createHoverContent = (tokenType: number, content: string): string => {
-  const prefix = tokenTypeReprs[tokenType];
+  const prefix = TodotxtTokenTypes[tokenType];
   return `\`\`\`todo.txt
 ${prefix}: ${content}
 \`\`\`
@@ -46,12 +45,12 @@ ___
 [format specs](${tokenTypeUrls[tokenType]})`;
 };
 
-const taskBeginningPatterns: number[] = [
-  "priority",
-  "completionMark",
-  "creationDate",
-  "completionDate",
-].map((tokenType: string) => encodeTokenType(tokenType));
+const taskBeginningPatterns: Set<number> = new Set<number>([
+  TodotxtTokenType.Priority,
+  TodotxtTokenType.CreationDate,
+  TodotxtTokenType.CompletionDate,
+  TodotxtTokenType.CompletionMark,
+]);
 
 /**
  * A special type for `Token[]` interval (start-end indexes).
@@ -65,30 +64,24 @@ interface IndexInterval {
  * Returns `IndexInterval`, indicating start and end of hover context inside `Token[]` array.
  * If common text is hovered, then index interval is returned for the whole task description.
  */
-const getCoverageInterval = (tokens: Token[], index: number): IndexInterval => {
-  let start: number = index;
-  let end: number = index;
-
-  if (tokens[index].tokenType === 0) {
+const getCoverageInterval = (lineTokens: Token[], index: number): IndexInterval => {
+  if (lineTokens[index].tokenType === 0) {
     for (
       ;
-      start > 0 &&
-      tokens[start - 1]?.line === tokens[index].line &&
-      taskBeginningPatterns.indexOf(tokens[start - 1].tokenType) === -1;
-      start--
-    ) {} // eslint-disable-line no-empty
+      index > 0 && (!taskBeginningPatterns.has(lineTokens[index - 1].tokenType));
+      index--
+    ) { }
 
-    for (
-      ;
-      end < tokens.length - 1 && tokens[end + 1]?.line === tokens[index].line;
-      end++
-    ) {} // eslint-disable-line no-empty
+    return {
+      start: index,
+      end: lineTokens.length - 1,
+    }
+  } else {
+    return {
+      start: index,
+      end: index,
+    }
   }
-
-  return {
-    start: start,
-    end: end,
-  } as IndexInterval;
 };
 
 /**
@@ -134,30 +127,32 @@ export const registerHoverHandler = (
     const doc = documents.get(params.textDocument.uri);
     if (!doc) return null;
 
-    const tokens = getDocTokens(doc);
-    if (!tokens) return null;
+    const tokens = storage.get(doc);
+    if (!tokens) {
+      connection.console.debug(`No tokens for ${doc.uri}!`);
+      return null;
+    }
 
-    const tokenPtr: TokenPointer = getIndexAtPosition(
-      tokens,
-      params.position,
-      false,
+    const tokenPtr: TokenPointer = getPositionIndex(
+      tokens[params.position.line], params.position, false,
     );
 
-    const currentToken: Token = tokens[tokenPtr.index];
+    const currentToken: Token = tokens[params.position.line][tokenPtr.index];
     if (!currentToken) return null;
 
     const contextInterval: IndexInterval = getCoverageInterval(
-      tokens,
+      tokens[params.position.line],
       tokenPtr.index,
     );
 
+    // TODO: create a key-value (Map<number, string>) cache for hover contents
     const content: string = createHoverContent(
       currentToken.tokenType,
       currentToken.tokenType === 0
-        ? getTextInsideInterval(tokens, contextInterval)
+        ? getTextInsideInterval(tokens[params.position.line], contextInterval)
         : currentToken.content,
     );
-    const range: Range = getTokenRange(tokens, contextInterval);
+    const range: Range = getTokenRange(tokens[params.position.line], contextInterval);
 
     return {
       contents: {
