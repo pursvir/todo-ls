@@ -1,18 +1,20 @@
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { Diagnostic, TextDocumentContentChangeEvent, TextDocumentIdentifier } from "vscode-languageserver";
+
 import { tokenizeText } from "./parser/tokenizer";
 import { TodotxtTokenType, TodotxtTokenTypes, Token } from "./parser/tokenTypes";
-import { TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem } from "vscode-languageserver";
 import { KEY_WITH_COLON_RE } from "./parser/regexps";
 
 
 /** Cache for `document`s' tokens.
  * Keys are documents' URIs, values are `Token[][]` lists, always sorted in ascending order. */
 export class TokenStorage {
-  private docTokensMap: Map<string, Token[][]> = new Map<string, Token[][]>;
+  private docTokensMap: Map<string, Token[][]> = new Map<string, Token[][]>();
+  // private docDiagnosticsMap: Map<string, Diagnostic[]> = new Map<string, Diagnostic[]>();``
 
-  private docProjectsMap: Map<string, Set<string>> = new Map<string, Set<string>>;
-  private docContextsMap: Map<string, Set<string>> = new Map<string, Set<string>>;
-  private docKeysMap: Map<string, Set<string>> = new Map<string, Set<string>>;
+  private docProjectsMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private docContextsMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private docKeysMap: Map<string, Set<string>> = new Map<string, Set<string>>();
 
   /**
    * Cache document's tokens and return them.

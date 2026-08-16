@@ -1,8 +1,10 @@
 import { Diagnostic } from "vscode-languageserver";
+
 import { config } from "../server";
 import { rangeBetweenTokens, tokenRange } from "../utils/tokenUtils";
 import { Token } from "../parser/tokenTypes";
 import { lineRange } from "../utils/tokenUtils";
+
 
 export const diagnoseDuplicateProject = (token: Token): Diagnostic => {
   return Diagnostic.create(
@@ -12,7 +14,7 @@ export const diagnoseDuplicateProject = (token: Token): Diagnostic => {
       ? config.diagnostics.duplicateProjects.severity
       : config.diagnostics.duplicateTags.severity
   );
-}
+};
 
 export const diagnoseDuplicateContext = (token: Token): Diagnostic => {
   return Diagnostic.create(
@@ -22,7 +24,7 @@ export const diagnoseDuplicateContext = (token: Token): Diagnostic => {
       ? config.diagnostics.duplicateContexts.severity
       : config.diagnostics.duplicateTags.severity
   );
-}
+};
 
 export const diagnoseDuplicateKey = (token: Token): Diagnostic => {
   return Diagnostic.create(
@@ -32,14 +34,14 @@ export const diagnoseDuplicateKey = (token: Token): Diagnostic => {
       ? config.diagnostics.duplicateKeys.severity
       : config.diagnostics.duplicateTags.severity
   );
-}
+};
 
 /** Create `Diagnostic` for range which claims that the creation date is newer than today, which is normally impossible. */
 export const diagnoseInvalidCreationDateToken = (token: Token): Diagnostic => {
   return Diagnostic.create(
     tokenRange(token),
     "Invalid creation date: later than today",
-    config.diagnostics.futureCreationDatesBlaming.severity
+    config.diagnostics.futureCreationDates.severity
   );
 };
 
@@ -48,7 +50,7 @@ export const diagnoseInvalidCompletionDateToken = (token: Token): Diagnostic => 
   return Diagnostic.create(
     tokenRange(token),
     "Invalid completion date: later than today",
-    config.diagnostics.futureCompletionDatesBlaming.severity,
+    config.diagnostics.futureCompletionDates.severity,
   );
 };
 
@@ -67,9 +69,9 @@ export const diagnoseMissingCompletionDate = (
   line: number, tokens: Token[],
 ): Diagnostic => {
   return Diagnostic.create(
-    lineRange(line, tokens),
+    lineRange(tokens, line),
     "Missing completion date!",
-    config.diagnostics.noCompletionDatesBlaming.severity,
+    config.diagnostics.noCompletionDates.severity,
   );
 };
 
@@ -77,9 +79,9 @@ export const diagnoseMissingCreationDate = (
   line: number, tokens: Token[],
 ): Diagnostic => {
   return Diagnostic.create(
-    lineRange(line, tokens),
+    lineRange(tokens, line),
     "Missing creation date!",
-    config.diagnostics.noCreationDatesBlaming.severity,
+    config.diagnostics.noCreationDates.severity,
   );
 };
 
@@ -87,9 +89,9 @@ export const diagnoseMissingDescription = (
   line: number, tokens: Token[],
 ): Diagnostic => {
   return Diagnostic.create(
-    lineRange(line, tokens),
+    lineRange(tokens, line),
     "Missing task description!",
-    config.diagnostics.noDescriptionBlaming.severity,
+    config.diagnostics.noDescription.severity,
   );
 };
 

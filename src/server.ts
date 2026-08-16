@@ -27,6 +27,7 @@ import { TokenStorage } from "./storage";
 
 registerInitializeHandler(connection);
 
+// TODO: forbid arbitrary fields
 export let config: TodolsConfig;
 if (fileConfig) {
   config = { ...defaultConfig, ...fileConfig };
@@ -40,7 +41,7 @@ registerDocumentOpenHandler(connection, documents, config);
 registerDocumentCloseHandler(documents);
 registerDocumentChangeHandler(connection, documents, config);
 
-if (config.features.highlightingEnabled) {
+if (config.features.hoverEnabled) {
   registerHoverHandler(connection, documents);
 }
 if (config.features.completionsEnabled) {

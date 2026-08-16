@@ -2,6 +2,7 @@ import { determineTokenType } from "./parser";
 import { Token } from "./tokenTypes";
 import { getLines } from "./utils";
 
+
 const TOKEN_PATTERN: RegExp = /\S+/g;
 
 /**
@@ -21,7 +22,7 @@ const tokenizeLine = (
       line: targetLine,
       character: newTokenChar,
       content: match[0],
-      tokenType: determineTokenType(match[0], targetLine, newTokenChar, tokens),
+      tokenType: determineTokenType(match[0], newTokenChar, tokens),
     };
     tokens.push(newToken);
   }

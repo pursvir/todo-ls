@@ -2,7 +2,8 @@ import fs from "fs";
 
 import { DiagnosticSeverity } from "vscode-languageserver";
 
-interface DiagnosticsConfig {
+
+export interface DiagnosticsConfig {
   enabled: boolean,
   severity: DiagnosticSeverity,
 }
@@ -17,10 +18,10 @@ const severityMapper: Map<string, DiagnosticSeverity> = new Map<string, Diagnost
 
 // TODO: make `npm run build:default-config` for generating `.todols.conf.template`.
 
-/** todo-ls config fields. */
+/** todo-ls config structure. */
 export type TodolsConfig = {
   features: {
-    highlightingEnabled: boolean,
+    hoverEnabled: boolean,
     completionsEnabled: boolean,
     diagnosticsEnabled: boolean,
     /** Whether codeActions provider is enabled or not. */
@@ -33,26 +34,42 @@ export type TodolsConfig = {
     duplicateContexts?: DiagnosticsConfig | undefined,
     duplicateKeys?: DiagnosticsConfig | undefined,
     /** Triggered by tasks which creation date is further than the day in which todo-ls is running. */
-    futureCreationDatesBlaming: DiagnosticsConfig,
+    futureCreationDates: DiagnosticsConfig,
     /** Triggered by tasks which completion date is further than the day in which todo-ls is running. */
-    futureCompletionDatesBlaming: DiagnosticsConfig,
+    futureCompletionDates: DiagnosticsConfig,
     /** Triggered by tasks which don't have a completion date (which is prohibited by todo.txt specification). */
-    noCompletionDatesBlaming: DiagnosticsConfig,
+    noCompletionDates: DiagnosticsConfig,
     /** Triggered by tasks which don't have a creation date. */
-    noCreationDatesBlaming: DiagnosticsConfig,
+    noCreationDates: DiagnosticsConfig,
     /** Triggered by completed tasks which completion date is older than creation one. */
     invalidCompletionChronology: DiagnosticsConfig,
     /** Triggered by tasks which don't have any "description" words and consist only of tags, priorities and so on. */
-    noDescriptionBlaming: DiagnosticsConfig,
+    noDescription: DiagnosticsConfig,
     /** Triggered by tasks where there are two or more whitespaces between its individual words. */
     redundantWhitespaces: DiagnosticsConfig,
+    /** Triggered by empty lines in your todo.txt file (\n\n). */
+    emptyLines: DiagnosticsConfig,
   }
+}
+
+export const mapToDomainConfig = (config: any): TodolsConfig => {
+  // config.diagnostics.forEach((subcfg) => {
+
+  // });
+  // foreach config.diagnostics
+  // if (mapped = severityMapper.get(severity) === undefined)
+  //  take from defaultConfig
+  // else
+  //  mapped
+  //
+
+  return config;
 }
 
 /** The default todo-ls config, being applied if no config file is found or if it's invalid. */
 export const defaultConfig: TodolsConfig = {
   features: {
-    highlightingEnabled: true,
+    hoverEnabled: true,
     completionsEnabled: true,
     diagnosticsEnabled: true,
     codeActionsEnabled: true,
@@ -62,19 +79,19 @@ export const defaultConfig: TodolsConfig = {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },
-    futureCreationDatesBlaming: {
+    futureCreationDates: {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },
-    futureCompletionDatesBlaming: {
+    futureCompletionDates: {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },
-    noCompletionDatesBlaming: {
+    noCompletionDates: {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },
-    noCreationDatesBlaming: {
+    noCreationDates: {
       enabled: false,
       severity: DiagnosticSeverity.Error,
     },
@@ -82,7 +99,7 @@ export const defaultConfig: TodolsConfig = {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },
-    noDescriptionBlaming: {
+    noDescription: {
       enabled: true,
       severity: DiagnosticSeverity.Warning,
     },
@@ -90,6 +107,10 @@ export const defaultConfig: TodolsConfig = {
       enabled: true,
       severity: DiagnosticSeverity.Warning,
     },
+    emptyLines: {
+      enabled: true,
+      severity: DiagnosticSeverity.Hint,
+    }
   }
 };
 
@@ -98,19 +119,15 @@ const configPath: string = ".todols.conf";
 /**
  * Todo LS configuration object.
  */
-export let fileConfig: TodolsConfig;
+export let fileConfig: TodolsConfig | undefined;
 
 try {
-  // TODO: forbid arbitrary fields
-  // TODO: make config file a JSONC, to allow comments. Just for better UX.
+  /** todo-ls config read from project root. */
   fileConfig = {
     ...defaultConfig,
-    // TODO: we could allow comments inside config files if we write some regex substitutions before parsing JSON.
+    // TODO: make config file a JSONC, to allow comments. Just for better UX.
+    //  we could allow comments inside config files if we write some regex substitutions before parsing JSON.
     // TODO: on Windows, this might not be UTF-8 encoded text...
     ...JSON.parse(fs.readFileSync(configPath, "utf-8")),
-  } satisfies TodolsConfig;
-  // connection.console.debug(`Loaded config from ${configPath}`);
-} catch (error) {
-  // TODO: check JSON parse errors and config file existence error separately
-  // connection.console.debug(`Failed to parse config, falling back to defaults`);
-}
+  };
+} catch (error) { }

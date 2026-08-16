@@ -1,6 +1,15 @@
-import { CodeAction, CodeActionKind, CodeActionParams, Connection, TextDocumentIdentifier, TextDocuments, WorkspaceEdit } from "vscode-languageserver";
+import {
+  CodeAction,
+  CodeActionKind,
+  CodeActionParams,
+  Connection,
+  TextDocumentIdentifier,
+  TextDocuments,
+} from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+
 import { getLines } from "../parser/utils";
+
 
 const createSortAction = (
   tasks: string[],

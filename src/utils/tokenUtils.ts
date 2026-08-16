@@ -1,6 +1,6 @@
 import { Token } from "../parser/tokenTypes";
 import { Position, Range } from "vscode-languageserver";
-import { KEY_WITH_COLON_RE } from "../parser/regexps";
+import { KEY_WITH_COLON_RE, KV_RE } from "../parser/regexps";
 
 /**
  * A helper function which returns `token`'s character end.
@@ -10,7 +10,7 @@ export const getTokenEnd = (token: Token): number => {
 };
 
 /**
- * Calculate a `Range` a `token` takes.
+ * Return a `Range` which `token` takes.
  */
 export const tokenRange = (token: Token): Range => {
   return {
@@ -26,7 +26,7 @@ export const tokenRange = (token: Token): Range => {
 };
 
 /**
- * Calculate a `Range` between `token1` and `token2`.
+ * Returns a `Range` between `token1` and `token2`.
  */
 export const rangeBetweenTokens = (
   token1: Token,
@@ -44,7 +44,8 @@ export const rangeBetweenTokens = (
   };
 };
 
-export const lineRange = (line: number, tokens: Token[]): Range => {
+/** Returns a `Range` which the `line` takes. */
+export const lineRange = (tokens: Token[], line: number): Range => {
   if (tokens.length === 0) {
     return {
       start: {
@@ -58,7 +59,7 @@ export const lineRange = (line: number, tokens: Token[]): Range => {
   }
   return {
     start: {
-      line: line,
+      line: tokens[0].line,
       character: 0,
     }, end: {
       line: line,
@@ -67,7 +68,7 @@ export const lineRange = (line: number, tokens: Token[]): Range => {
   }
 };
 
-const comparePositions = (position: Position, token: Token): number => {
+const cmp = (position: Position, token: Token): number => {
   return (
     token.character <= position.character &&
     position.character <= getTokenEnd(token)
@@ -83,7 +84,7 @@ export const positionIsInsideToken = (
   position: Position,
   token: Token,
 ): boolean => {
-  return !comparePositions(position, token);
+  return !cmp(position, token);
 };
 
 /**
@@ -122,13 +123,13 @@ export const getPositionIndex = (
   while (left <= right) {
     let mid: number = Math.floor((left + right) / 2);
 
-    let cmp: number = comparePositions(position, lineTokens[mid]);
-    if (cmp === 0) {
+    const cmp_: number = cmp(position, lineTokens[mid]);
+    if (cmp_ === 0) {
       return {
         index: mid,
         isInsideToken: true,
       } as TokenPointer;
-    } else if (cmp > 0) {
+    } else if (cmp_ > 0) {
       left = mid + 1;
     } else {
       right = mid - 1;
@@ -147,4 +148,27 @@ export const getPositionIndex = (
 export const getKey = (token: Token): string => {
   // @ts-expect-error
   return token.content.match(KEY_WITH_COLON_RE)[0];
+}
+
+export interface KeyValueSchema {
+  key: string,
+  value: string
+};
+
+export const getKeyValue = (token: Token): KeyValueSchema => {
+  const match = token.content.match(KV_RE);
+  if (!match || (!match.groups))
+    throw new Error("Not a key-value tag!");
+
+  return {
+    key: match.groups.key,
+    value: match.groups.value,
+  }
+}
+
+export const getTokenUnderPosition = (tokens: Token[][], position: Position): Token | undefined => {
+  const tokenPtr: TokenPointer = getPositionIndex(tokens[position.line], position);
+  const currentToken: Token = tokens[position.line][tokenPtr.index];
+
+  return currentToken;
 }

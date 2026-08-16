@@ -1,4 +1,5 @@
 import { Diagnostic } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { TodotxtTokenType, Token } from "../parser/tokenTypes";
 import { generateISODate } from "../utils/dateUtils";
@@ -14,9 +15,7 @@ import {
   diagnoseInvalidCompletionChronology,
 } from "./diagnosis";
 import { getKey, getTokenEnd } from "../utils/tokenUtils";
-
 import { storage } from "../server";
-import { TextDocument } from "vscode-languageserver-textdocument";
 
 // TODO: this is complete antipattern code... In the future, those functions **should** return Diagnostic or nothing.
 

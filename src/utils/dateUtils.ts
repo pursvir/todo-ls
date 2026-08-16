@@ -21,3 +21,13 @@ export const getToday = (): Date => {
   const dt: Date = new Date();
   return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
 }
+
+/** Returns if the given date is possible. */
+export const isValidIsoDate = (data: string): boolean => {
+  const dt: Date = new Date(data);
+  // @ts-ignore
+  if (isNaN(dt)) {
+    return true;
+  }
+  return false;
+}

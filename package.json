@@ -2,17 +2,21 @@
     "name": "todo-ls",
     "keywords": [
         "lsp",
+        "language-server",
         "todo.txt"
     ],
-    "version": "0.3-alpha",
+    "version": "0.3-beta",
     "homepage": "https://github.com/pursvir/todo-ls",
-    "description": "LSP server implementation for todo.txt files.",
+    "description": "Language server implementation for todo.txt files.",
     "license": "MIT",
     "author": "pursvir",
     "type": "commonjs",
     "repository": {
         "type": "git",
         "url": "https://github.com/pursvir/todo-ls"
+    },
+    "bugs": {
+        "url": "https://github.com/pursvir/todo-ls/issues"
     },
     "scripts": {
         "preinstall": "tsc",
@@ -29,13 +33,15 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@types/jest": "^30.0.0",
         "@types/node": "^26.1.2",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
-        "@typescript-eslint/eslint-plugin": "^8.60.1",
+        "@typescript-eslint/eslint-plugin": "^8.66.0",
         "@typescript-eslint/parser": "^8.60.1",
         "eslint": "^10.4.1",
         "prettier": "^3.8.3",
+        "ts-jest": "^29.4.12",
         "typescript": "^5.9.3"
     },
     "files": [
@@ -44,9 +50,9 @@
         "LICENSE",
         "CHANGELOG.md"
     ],
-    "main": "dist/index.js",
+    "main": "./dist/index.js",
     "bin": {
-        "todo-ls": "dist/index.js"
+        "todo-ls": "./dist/index.js"
     },
     "allowScripts": {
         "unrs-resolver@1.12.2": true,

@@ -17,7 +17,7 @@ export const registerInitializeHandler = (connection: Connection): void => {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         hoverProvider: true,
         completionProvider: {
-          triggerCharacters: ["@", "+"],
+          triggerCharacters: ["(", "@", "+"],
         },
         codeActionProvider: {
           resolveProvider: false,

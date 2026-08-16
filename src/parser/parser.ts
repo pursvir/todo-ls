@@ -10,6 +10,7 @@ import {
 } from "./regexps";
 import { getTokenEnd } from "../utils/tokenUtils";
 
+
 export const tokenPatternMap: Map<PatternType, RegExp> = new Map<
   PatternType,
   RegExp
@@ -37,10 +38,9 @@ export const determinePatternType = (token: string): PatternType => {
  */
 export const determineTokenType = (
   content: string,
-  line: number,
   character: number,
   tokens: Token[],
-): number => {
+): TodotxtTokenType => {
   let todotxtType: TodotxtTokenType;
   const idxOnLine: number = tokens.length;
   let tokenPatternType: PatternType = determinePatternType(content);

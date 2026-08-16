@@ -14,5 +14,5 @@ export const PROJECT_SYMBOL_RE: RegExp = /^\+$/;
 export const CONTEXT_RE: RegExp = /^@\S+$/;
 export const CONTEXT_SYMBOL_RE: RegExp = /^@$/;
 
-export const KV_RE: RegExp = /^[^:\s]+:[^:\s]+$/;
+export const KV_RE: RegExp = /^(?<key>[^:\s]+):(?<value>[^:\s]+)$/;
 export const KEY_WITH_COLON_RE: RegExp = /^[^:\s]+:/;

@@ -7,8 +7,8 @@ import {
   Range,
   TextDocuments,
 } from "vscode-languageserver";
-
 import { TextDocument } from "vscode-languageserver-textdocument";
+
 import {
   getPositionIndex,
   TokenPointer,
@@ -27,11 +27,13 @@ import {
   PROJECT_SYMBOL_RE,
 } from "../parser/regexps";
 
-// TODO: choose kinds which are most suitable.
-const kindMap: Map<string, number> = new Map<string, number>([
-  ["@", CompletionItemKind.Interface],
-  ["+", CompletionItemKind.Interface], // .Color ?
-  // TODO: achieve key-value tag highlighting.
+
+// TODO: make those kinds configurable
+const kindMap: Map<PatternType, number> = new Map<PatternType, number>([
+  [PatternType.Priority, CompletionItemKind.Keyword],
+  [PatternType.Project, CompletionItemKind.Interface],
+  [PatternType.Context, CompletionItemKind.Color],
+  [PatternType.KeyValue, CompletionItemKind.Keyword]
 ]);
 
 
@@ -43,15 +45,14 @@ const CREATION_DATE_AFTER_COMPLETION_DATE_CHAR: number = 13;
 const COMPLETION_DATE_AFTER_COMPLETION_MARK_CHAR: number = 2;
 
 
-const getKind = (char: string | undefined): CompletionItemKind => {
+const getKind = (pattern: PatternType | undefined): CompletionItemKind => {
   let result: number = 0;
-  if (char === undefined) return result as CompletionItemKind;
-  for (const [pattern, kind] of kindMap) {
-    if (char === pattern) {
-      result = kind;
-      break;
-    }
-  }
+  if (pattern === undefined) return result as CompletionItemKind;
+
+  let kind: number | undefined;
+  if ((kind = kindMap.get(pattern)) !== undefined)
+    result = kind;
+
   return result as CompletionItemKind;
 };
 
@@ -75,11 +76,58 @@ const generatePriorityItems = (insertPos: Position, offset: number = 0): Complet
   );
 }
 
+// TODO: correct max months for each month number
+function generateMaxDate(prefix: string): string {
+  let result: string = prefix;
+  const len = prefix.length;
+
+  for (let i: number = len; i < 4; i++)
+    result += "9";
+  if (len < 5)
+    result += "-";
+  if (len < 6)
+    result += "1";
+  if (len < 7)
+    result += "2";
+  if (len < 8)
+    result += "-";
+  if (len < 9)
+    result += "3";
+  if (len < 10)
+    result += "1";
+
+  return result;
+}
+
+function generateMinDate(prefix: string): string {
+  let result: string = prefix;
+  const len: number = prefix.length;
+
+  for (let i: number = len; i < 4; i++)
+    result += "0";
+  if (len < 5)
+    result += "-";
+  if (len < 6)
+    result += "0";
+  if (len < 7)
+    result += "1";
+  if (len < 8)
+    result += "-";
+  if (len < 9)
+    result += "0";
+  if (len < 10)
+    result += 1;
+
+  return result;
+}
+
 // TODO: we should cache this
 /**
- * Returns list of `CompletionItem`s with ISO 8601 dates, corresponding to today, tomorrow and for each day until a week ago.
+ * Returns list of `CompletionItem`s with ISO 8601 date texts.
+ * If current token's prefix is today date, returns today, tomorrow and each day before until a week ago.
  */
 const generateDateItems = (
+  datePart: string,
   insertPos: Position,
   offset: number,
   prefix: string = "",
@@ -88,9 +136,34 @@ const generateDateItems = (
     start: insertPos,
     end: insertPos,
   };
+  const today: string = generateISODate();
+  const commonPrefix: string = today.slice(0, datePart.length);
+
+  // TODO: should we provide more completion items in those cases?
+  if (datePart > commonPrefix) {
+    const minDt = generateMinDate(datePart);
+    return [{
+      label: minDt,
+      detail: "future",
+      textEdit: {
+        range: range,
+        newText: `${minDt} `.slice(offset),
+      }
+    }];
+  } else if (datePart < commonPrefix) {
+    const maxDt: string = generateMaxDate(datePart);
+    return [{
+      label: maxDt,
+      detail: "from history",
+      textEdit: {
+        range: range,
+        newText: `${maxDt} `.slice(offset),
+      }
+    }];
+  }
 
   return [
-    ...[[generateISODate(), "today"], [generateISODate(1), "tomorrow"]]
+    ...[[today, "today"], [generateISODate(1), "tomorrow"]]
       .map((elem: string[], i: number): CompletionItem => {
         const text: string = `${prefix}${elem[0]}`;
         return {
@@ -145,6 +218,8 @@ export const registerCompletionHandler = (
   documents: TextDocuments<TextDocument>,
 ): void => {
   connection.onCompletion((params: CompletionParams): CompletionItem[] => {
+    // TODO: is it possible to make todo-ls not conflict with IDE's built-in completions (when just typing letters)?
+
     if (params.context?.triggerKind === 3) {
       // unsupported.
       return [];
@@ -156,11 +231,9 @@ export const registerCompletionHandler = (
     const tokens: Token[][] = storage.get(doc);
     if (!tokens) return [];
 
-    let triggerChar: string | undefined;
     let completionTriggerType: PatternType = PatternType.Common;
 
     const tokenPtr: TokenPointer = getPositionIndex(tokens[params.position.line], params.position);
-    // connection.console.debug(`Token ptr: ${tokenPtr.index} ${tokenPtr.isInsideToken}`);
 
     const currentToken: Token = tokens[params.position.line][tokenPtr.index];
 
@@ -170,17 +243,21 @@ export const registerCompletionHandler = (
     let itemSet: Set<string> = new Set<string>();
 
     if (params.context?.triggerKind === 2) {
-      // typing new project/context/date (one of completionProvider characters)
-      triggerChar = params.context?.triggerCharacter;
+      const triggerChar: string | undefined = params.context?.triggerCharacter;
       if (triggerChar === undefined) return [];
 
-      if (PROJECT_SYMBOL_RE.test(triggerChar)) {
+      if (triggerChar === "(") {
+        if (params.position.character === 1) {
+          completionTriggerType = PatternType.Priority;
+        } else {
+          completionTriggerType = PatternType.Common;
+        }
+      } else if (PROJECT_SYMBOL_RE.test(triggerChar)) {
         completionTriggerType = PatternType.Project;
       } else if (CONTEXT_SYMBOL_RE.test(triggerChar)) {
         completionTriggerType = PatternType.Context;
       }
     } else if (params.context?.triggerKind === 1) {
-      // TODO: not fully-typed key-value tag
       switch (currentToken.tokenType) {
         case TodotxtTokenType.Project:
           completionTriggerType = PatternType.Project;
@@ -212,7 +289,6 @@ export const registerCompletionHandler = (
             offset = match.groups.priorBegin.length;
             completionTriggerType = PatternType.Priority;
           } else if (
-            // TODO: first digit should match only first digit of current year, and so on...
             (match = currentToken.content.match(INCOMPLETE_DATE_BEGINNING_RE)) !== null
             && ((
               isTypedAsFirst(idxOnLine, currentToken)
@@ -262,12 +338,14 @@ export const registerCompletionHandler = (
 
     switch (completionTriggerType) {
       case PatternType.Priority:
-        // TODO: should we suggest both priority and priority with creation dates in CompletionItems?
         return generatePriorityItems(insertPos, offset);
       case PatternType.Date:
-        // TODO: it's probably not the best idea to provide those items in all cases.
-        // e.g. I can type "210".
-        return generateDateItems(insertPos, offset, datePrefix);
+        // TODO: may return invalid dates, e.g. 2020-22-33
+        //  set up some validity checker
+        return generateDateItems(
+          currentToken.content, insertPos,
+          offset, datePrefix
+        );
       case PatternType.Project:
         detail = "project tag";
         break;
@@ -283,7 +361,7 @@ export const registerCompletionHandler = (
         return [];
     }
 
-    const kind: CompletionItemKind = getKind(triggerChar);
+    const kind: CompletionItemKind = getKind(completionTriggerType);
 
     if (isProjOrCtx) {
       const itemSet_: Set<string> | undefined =

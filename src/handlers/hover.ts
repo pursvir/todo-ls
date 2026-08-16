@@ -11,10 +11,12 @@ import { TodotxtTokenType, Token } from "../parser/tokenTypes";
 import {
   getPositionIndex,
   getTokenEnd,
+  rangeBetweenTokens,
 } from "../utils/tokenUtils";
 import { TokenPointer } from "../utils/tokenUtils";
 import { TodotxtTokenTypes } from "../parser/tokenTypes";
 import { storage } from "../server";
+
 
 const DOC_URL_ROOT: string = "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
 
@@ -102,20 +104,6 @@ const getTextInsideInterval = (
   return resultText;
 };
 
-const getTokenRange = (tokens: Token[], interval: IndexInterval): Range => {
-  return {
-    start: {
-      line: tokens[interval.start].line,
-      character: tokens[interval.start].character,
-    },
-    end: {
-      line: tokens[interval.end].line,
-      character:
-        tokens[interval.end].character + tokens[interval.end].content.length,
-    },
-  } as Range;
-};
-
 export const registerHoverHandler = (
   connection: Connection,
   documents: TextDocuments<TextDocument>,
@@ -152,7 +140,10 @@ export const registerHoverHandler = (
         ? getTextInsideInterval(tokens[params.position.line], contextInterval)
         : currentToken.content,
     );
-    const range: Range = getTokenRange(tokens[params.position.line], contextInterval);
+    const range: Range = rangeBetweenTokens(
+      tokens[params.position.line][contextInterval.start],
+      tokens[params.position.line][contextInterval.end],
+    );
 
     return {
       contents: {
