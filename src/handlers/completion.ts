@@ -56,7 +56,10 @@ const getKind = (pattern: PatternType | undefined): CompletionItemKind => {
   return result as CompletionItemKind;
 };
 
-const generatePriorityItems = (insertPos: Position, offset: number = 0): CompletionItem[] => {
+const generatePriorityItems = (
+  insertPos: Position, offset: number = 0,
+  suffix: string = " ",
+): CompletionItem[] => {
   // TODO: define priority set via config options
   return ["A", "B", "C", "D"].map(
     (letter: string) => {
@@ -69,7 +72,7 @@ const generatePriorityItems = (insertPos: Position, offset: number = 0): Complet
             start: insertPos,
             end: insertPos,
           },
-          newText: `(${letter}) `.slice(offset),
+          newText: `(${letter})${suffix}`.slice(offset),
         }
       };
     },
@@ -131,6 +134,7 @@ const generateDateItems = (
   insertPos: Position,
   offset: number,
   prefix: string = "",
+  suffix: string = " ",
 ): CompletionItem[] => {
   const range: Range = {
     start: insertPos,
@@ -147,7 +151,7 @@ const generateDateItems = (
       detail: "future",
       textEdit: {
         range: range,
-        newText: `${minDt} `.slice(offset),
+        newText: `${minDt}${suffix}`.slice(offset),
       }
     }];
   } else if (datePart < commonPrefix) {
@@ -157,7 +161,7 @@ const generateDateItems = (
       detail: "from history",
       textEdit: {
         range: range,
-        newText: `${maxDt} `.slice(offset),
+        newText: `${maxDt}${suffix}`.slice(offset),
       }
     }];
   }
@@ -172,7 +176,7 @@ const generateDateItems = (
           sortText: `${i}`,
           textEdit: {
             range: range,
-            newText: `${text} `.slice(offset),
+            newText: `${text}${suffix}`.slice(offset),
           }
         }
       }
@@ -225,7 +229,7 @@ export const registerCompletionHandler = (
       return [];
     }
 
-    const doc = documents.get(params.textDocument.uri);
+    const doc: TextDocument | undefined = documents.get(params.textDocument.uri);
     if (!doc) return [];
 
     const tokens: Token[][] = storage.get(doc);
@@ -234,11 +238,11 @@ export const registerCompletionHandler = (
     let completionTriggerType: PatternType = PatternType.Common;
 
     const tokenPtr: TokenPointer = getPositionIndex(tokens[params.position.line], params.position);
-
     const currentToken: Token = tokens[params.position.line][tokenPtr.index];
 
     let datePrefix: string = "";
     let offset: number = 0;
+    let noWhitespaceRequired: boolean;
 
     let itemSet: Set<string> = new Set<string>();
 
@@ -288,6 +292,11 @@ export const registerCompletionHandler = (
             // @ts-expect-error
             offset = match.groups.priorBegin.length;
             completionTriggerType = PatternType.Priority;
+            noWhitespaceRequired = (
+              (tokenPtr.index === 0 && tokens[currentToken.line].length > 1)
+              // @ts-expect-error
+              && !(match.groups.priorBegin.length === currentToken.content.length)
+            );
           } else if (
             (match = currentToken.content.match(INCOMPLETE_DATE_BEGINNING_RE)) !== null
             && ((
@@ -314,7 +323,16 @@ export const registerCompletionHandler = (
           ) {
             completionTriggerType = PatternType.Date;
             offset = match[0].length;
-          // TODO: we can handle key-value's values. But how?
+            noWhitespaceRequired = (
+              (tokenPtr.index === 0 && tokens[currentToken.line].length > 1)
+              || (
+                // For creaton and completion dates.
+                [1, 2].includes(tokenPtr.index)
+                && tokens[currentToken.line].length > 2
+                && tokens[currentToken.line][2].character >= 4
+              )
+            );
+          // TODO: somehow handle key-value completions
           } else {
             itemSet = getProbableKeys(doc, currentToken.content);
             if (
@@ -338,13 +356,16 @@ export const registerCompletionHandler = (
 
     switch (completionTriggerType) {
       case PatternType.Priority:
-        return generatePriorityItems(insertPos, offset);
+        // @ts-expect-error
+        return generatePriorityItems(insertPos, offset, noWhitespaceRequired ? "" : " ");
       case PatternType.Date:
         // TODO: may return invalid dates, e.g. 2020-22-33
         //  set up some validity checker
         return generateDateItems(
           currentToken.content, insertPos,
-          offset, datePrefix
+          offset, datePrefix,
+          // @ts-expect-error
+          noWhitespaceRequired ? "" : " ",
         );
       case PatternType.Project:
         detail = "project tag";
