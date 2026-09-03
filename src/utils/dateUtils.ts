@@ -23,11 +23,7 @@ export const getToday = (): Date => {
 }
 
 /** Returns if the given date is possible. */
-export const isValidIsoDate = (data: string): boolean => {
-  const dt: Date = new Date(data);
+export const isValidIsoDate = (date: string): boolean => {
   // @ts-ignore
-  if (isNaN(dt)) {
-    return true;
-  }
-  return false;
-}
+  return !(isNaN(new Date(date)));
+};

@@ -33,6 +33,7 @@ export type TodolsConfig = {
     duplicateProjects?: DiagnosticsConfig | undefined,
     duplicateContexts?: DiagnosticsConfig | undefined,
     duplicateKeys?: DiagnosticsConfig | undefined,
+    invalidDate: DiagnosticsConfig,
     /** Triggered by tasks which creation date is further than the day in which todo-ls is running. */
     futureCreationDates: DiagnosticsConfig,
     /** Triggered by tasks which completion date is further than the day in which todo-ls is running. */
@@ -76,6 +77,10 @@ export const defaultConfig: TodolsConfig = {
   },
   diagnostics: {
     duplicateTags: {
+      enabled: true,
+      severity: DiagnosticSeverity.Error,
+    },
+    invalidDate: {
       enabled: true,
       severity: DiagnosticSeverity.Error,
     },

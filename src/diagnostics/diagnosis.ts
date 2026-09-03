@@ -36,12 +36,20 @@ export const diagnoseDuplicateKey = (token: Token): Diagnostic => {
   );
 };
 
+export const diagnoseInvalidDateToken = (token: Token): Diagnostic => {
+  return Diagnostic.create(
+    tokenRange(token),
+    "Invalid date",
+    config.diagnostics.invalidDate.severity,
+  );
+};
+
 /** Create `Diagnostic` for range which claims that the creation date is newer than today, which is normally impossible. */
 export const diagnoseInvalidCreationDateToken = (token: Token): Diagnostic => {
   return Diagnostic.create(
     tokenRange(token),
     "Invalid creation date: later than today",
-    config.diagnostics.futureCreationDates.severity
+    config.diagnostics.futureCreationDates.severity,
   );
 };
 

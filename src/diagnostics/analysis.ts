@@ -2,7 +2,7 @@ import { Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { TodotxtTokenType, Token } from "../parser/tokenTypes";
-import { generateISODate } from "../utils/dateUtils";
+import { generateISODate, isValidIsoDate } from "../utils/dateUtils";
 import {
   diagnoseInvalidCreationDateToken,
   diagnoseInvalidCompletionDateToken,
@@ -13,6 +13,7 @@ import {
   diagnoseMissingCompletionDate,
   diagnoseRedundantWhitespaces,
   diagnoseInvalidCompletionChronology,
+  diagnoseInvalidDateToken,
 } from "./diagnosis";
 import { getKey, getTokenEnd } from "../utils/tokenUtils";
 import { storage } from "../server";
@@ -61,6 +62,20 @@ const analyzeForRedundantWhitespaces = (
       token.line, lastChar, token.character,
     ));
   return getTokenEnd(token);
+};
+
+const analyzeForInvalidDate = (
+  token: Token,
+  diagnostics: Diagnostic[],
+): boolean => {
+  if (
+    [TodotxtTokenType.CreationDate, TodotxtTokenType.CompletionDate].includes(token.tokenType)
+    && !(isValidIsoDate(token.content))
+  ) {
+    diagnostics.push(diagnoseInvalidDateToken(token));
+    return true;
+  }
+  return false;
 };
 
 /** Returns `true` if token is invalid creation date. */
@@ -137,6 +152,8 @@ export const analyzeDocument = (
 
       analyzeForDuplicateTags(token, uniqueTags, diagnostics);
 
+      // TODO: too many repeating checks. Needs refactoring.
+      analyzeForInvalidDate(token, diagnostics);
       analyzeForInvalidCreationDate(token, today, diagnostics);
       analyzeForInvalidCompletionDate(token, today, diagnostics);
 
