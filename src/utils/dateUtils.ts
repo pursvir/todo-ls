@@ -24,6 +24,9 @@ export const getToday = (): Date => {
 
 /** Returns if the given date is possible. */
 export const isValidIsoDate = (date: string): boolean => {
+  // TODO: for some reason, JavaScript allows creation of invalid dates which for even months.
+  // For example: `new Date("2026-02-31"), new Date("2025-06-31")` and so on.
+  // we should write a validator for those cases
   // @ts-ignore
   return !(isNaN(new Date(date)));
 };

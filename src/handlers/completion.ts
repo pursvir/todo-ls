@@ -256,10 +256,16 @@ export const registerCompletionHandler = (
         } else {
           completionTriggerType = PatternType.Common;
         }
-      } else if (PROJECT_SYMBOL_RE.test(triggerChar)) {
-        completionTriggerType = PatternType.Project;
-      } else if (CONTEXT_SYMBOL_RE.test(triggerChar)) {
-        completionTriggerType = PatternType.Context;
+      } else if (!(currentToken.character < params.position.character)) {
+        if (PROJECT_SYMBOL_RE.test(triggerChar)) {
+          completionTriggerType = PatternType.Project;
+        } else if (CONTEXT_SYMBOL_RE.test(triggerChar)) {
+          completionTriggerType = PatternType.Context;
+        } else {
+          completionTriggerType = PatternType.Common;
+        }
+      } else {
+        completionTriggerType = PatternType.Common;
       }
     } else if (params.context?.triggerKind === 1) {
       switch (currentToken.tokenType) {
