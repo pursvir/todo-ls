@@ -1,8 +1,7 @@
 0.3.1 (09.06.2026)
 
-- Improved completions
-- Completions for documents' key-value tags
-- ...
+- Fixed various bugs in completion handler
+- Add completions for documents' key-value tags
 
 0.3 (08.06.26)
 

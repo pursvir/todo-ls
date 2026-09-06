@@ -2,7 +2,7 @@ import { Diagnostic } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { TodotxtTokenType, Token } from "../parser/tokenTypes";
-import { generateISODate, isValidIsoDate } from "../utils/dateUtils";
+import { generateISODate, isValidDate } from "../utils/dateUtils";
 import {
   diagnoseInvalidCreationDateToken,
   diagnoseInvalidCompletionDateToken,
@@ -70,7 +70,7 @@ const analyzeForInvalidDate = (
 ): boolean => {
   if (
     [TodotxtTokenType.CreationDate, TodotxtTokenType.CompletionDate].includes(token.tokenType)
-    && !(isValidIsoDate(token.content))
+    && !(isValidDate(token.content))
   ) {
     diagnostics.push(diagnoseInvalidDateToken(token));
     return true;

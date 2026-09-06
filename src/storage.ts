@@ -41,7 +41,7 @@ export class TokenStorage {
   };
 
   /** Returns document's cached keys of its key-value tags. */
-  public getKeysOf = (doc: TextDocument): Map<string, Set<string>> | undefined => {
+  public getKeyValuesOf = (doc: TextDocument): Map<string, Set<string>> | undefined => {
     return this.docKeyValues.get(doc.uri);
   };
 

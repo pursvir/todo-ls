@@ -19,7 +19,6 @@
         "url": "https://github.com/pursvir/todo-ls/issues"
     },
     "scripts": {
-        "preinstall": "tsc",
         "build": "tsc && npx add-shebang",
         "format": "npx prettier --write src/",
         "lint": "npx eslint",

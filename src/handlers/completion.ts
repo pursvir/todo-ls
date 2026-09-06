@@ -14,7 +14,7 @@ import {
   TokenPointer,
 } from "../utils/tokenUtils";
 import { PatternType, TodotxtTokenType, Token } from "../parser/tokenTypes";
-import { generateISODate } from "../utils/dateUtils";
+import { generateISODate, isFebruary, isLeapYear, isValidDate } from "../utils/dateUtils";
 import { storage } from "../server";
 import {
   COMPLETION_MARK_RE,
@@ -71,12 +71,14 @@ function generatePriorityItems(
   insertPos: Position, offset: number = 0,
   suffix: string = " ",
 ): CompletionItem[] {
+  const kind = getKind(CompletionType.Priority) ?? 0;
   // TODO: define priority range via config options
   return ["A", "B", "C", "D"].map(
     (letter: string) => {
       const label: string = `(${letter}) `;
       return {
         label: label,
+        kind: kind,
         detail: "priority",
         textEdit: {
           range: {
@@ -91,6 +93,10 @@ function generatePriorityItems(
 }
 
 // TODO: correct max months for each month number
+/**
+ * Returns max possible date for given ISO 8601 date `prefix`.
+ * If a date for the prefix is impossible, null is returned.
+ * */
 function generateMaxDate(prefix: string): string {
   let result: string = prefix;
   const len = prefix.length;
@@ -105,11 +111,22 @@ function generateMaxDate(prefix: string): string {
     result += "2";
   if (len < 8)
     result += "-";
-  if (len < 9)
-    result += "3";
-  if (len < 10)
-    result += "1";
-
+  if (len < 9) {
+    if (isFebruary(prefix))
+      result += "2";
+    else
+      result += "3";
+  }
+  if (len < 10) {
+    if (isFebruary(prefix)) {
+      if (isLeapYear(parseInt(prefix.slice(0, 4))))
+        result += "9";
+      else
+        result += "8";
+    } else {
+      result += "1";
+    }
+  }
   return result;
 }
 
@@ -166,6 +183,8 @@ function generateDateItems(
       }
     }];
   } else if (datePart < commonPrefix) {
+    if (!isValidDate(datePart))
+      return [];
     const maxDt: string = generateMaxDate(datePart);
     return [{
       label: maxDt,
@@ -215,7 +234,7 @@ function generateDateItems(
 function getProbableKeys(doc: TextDocument, text: string): Set<string> {
   const res: Set<string> = new Set<string>();
 
-  const kvs: Map<string, Set<string>> | undefined = storage.getKeysOf(doc);
+  const kvs: Map<string, Set<string>> | undefined = storage.getKeyValuesOf(doc);
   if (!kvs)
     return res;
 
@@ -234,15 +253,14 @@ function getProbableKeys(doc: TextDocument, text: string): Set<string> {
 function getValuesForKey(doc: TextDocument, key: string): Set<string> {
   let res: Set<string> | undefined = new Set<string>();
 
-  const kvs: Map<string, Set<string>> | undefined = storage.getKeysOf(doc);
+  const kvs: Map<string, Set<string>> | undefined = storage.getKeyValuesOf(doc);
   if (!kvs)
     return res;
 
-  if ((res = kvs.get(key)) === undefined) {
-    return new Set<string>();
-  } else {
-    return res;
-  }
+  if ((res = kvs.get(key)) === undefined)
+    res = new Set<string>();
+
+  return res;
 }
 
 function isTypedAsFirst(idx: number, token: Token): boolean {
@@ -387,6 +405,7 @@ export function registerCompletionHandler(connection: Connection,
 
     switch (completionTriggerType) {
       // TODO: make completions for each token type configurable via user's config.
+      // TODO: make optional whitelists/blacklists for non-date tags.
       case CompletionType.Priority:
         // @ts-expect-error
         return generatePriorityItems(insertPos, offset, noWhitespaceRequired ? "" : " ");
@@ -414,7 +433,8 @@ export function registerCompletionHandler(connection: Connection,
         isPrefixedMetadata = false;
         break;
       default:
-        // shouldn't be here.
+        // Common type.
+        // TODO: must be handled by text editor itself.
         return [];
     }
 

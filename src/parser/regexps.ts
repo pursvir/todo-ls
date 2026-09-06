@@ -5,7 +5,7 @@ export const INCOMPLETE_PRIORITY_BEGINNING_RE: RegExp = /^(?<priorBegin>\([A-Z]?
 export const PRIORITY_CONTAINING_RE: RegExp = /\([A-Z]\)$/;
 
 export const DATE_RE: RegExp = /^[1-9]\d{3}-\d{2}-\d{2}$/;
-export const INCOMPLETE_DATE_BEGINNING_RE: RegExp = /^([1-9](?:|\d{1,3}|\d{3}(?:-(?:|\d{1,2}(?:|-\d{0,1})))))/;
+export const INCOMPLETE_DATE_BEGINNING_RE: RegExp = /^([1-9](?:|\d{1,3}|\d{3}(?:-(?:|\d{1,2}(?:|-\d{0,1})))))$/;
 export const DATE_CONTAINING_RE: RegExp = /[1-9]\d{3}-\d{2}-\d{2}$/;
 
 export const PROJECT_RE: RegExp = /^\+\S+$/;
