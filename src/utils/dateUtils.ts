@@ -42,7 +42,9 @@ export function isValidDate(date: string): boolean {
   return (!(
     date[0] === "0"
     || date[5] > "1"
+    || (date[5] === "0" && date[6] === "0")
     || (date[5] === "1" && date[6] > "2")
+    || (date[8] === "0" && date[9] === "0")
     || (date[8] > "3")
     || (
       (isFebruary(date) && (
