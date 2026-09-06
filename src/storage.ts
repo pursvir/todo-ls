@@ -1,20 +1,21 @@
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { Diagnostic, TextDocumentContentChangeEvent, TextDocumentIdentifier } from "vscode-languageserver";
+import { TextDocumentContentChangeEvent, TextDocumentIdentifier } from "vscode-languageserver";
 
 import { tokenizeText } from "./parser/tokenizer";
-import { TodotxtTokenType, TodotxtTokenTypes, Token } from "./parser/tokenTypes";
-import { KEY_WITH_COLON_RE } from "./parser/regexps";
+import { TodotxtTokenType, Token } from "./parser/tokenTypes";
+import { KV_RE } from "./parser/regexps";
 
 
 /** Cache for `document`s' tokens.
  * Keys are documents' URIs, values are `Token[][]` lists, always sorted in ascending order. */
 export class TokenStorage {
-  private docTokensMap: Map<string, Token[][]> = new Map<string, Token[][]>();
+  private docTokens: Map<string, Token[][]> = new Map<string, Token[][]>();
   // private docDiagnosticsMap: Map<string, Diagnostic[]> = new Map<string, Diagnostic[]>();``
 
-  private docProjectsMap: Map<string, Set<string>> = new Map<string, Set<string>>();
-  private docContextsMap: Map<string, Set<string>> = new Map<string, Set<string>>();
-  private docKeysMap: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private docProjects: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private docContexts: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private docKeyValues: Map<string, Map<string, Set<string>>> =
+    new Map<string, Map<string, Set<string>>>();
 
   /**
    * Cache document's tokens and return them.
@@ -22,51 +23,64 @@ export class TokenStorage {
    * @returns list of Tokens
    */
   public get = (doc: TextDocument): Token[][] => {
-    if (!this.docTokensMap.get(doc.uri)) {
-      this.docTokensMap.set(doc.uri, tokenizeText(doc.getText()));
+    if (!this.docTokens.get(doc.uri)) {
+      this.docTokens.set(doc.uri, tokenizeText(doc.getText()));
     }
     // @ts-expect-error: TS2322
-    return this.docTokensMap.get(doc.uri);
+    return this.docTokens.get(doc.uri);
   };
 
   /** Returns document's cached projects. */
   public getProjsOf = (doc: TextDocument): Set<string> | undefined => {
-    return this.docProjectsMap.get(doc.uri);
+    return this.docProjects.get(doc.uri);
   };
 
   /** Returns document's cached contexts. */
   public getCtxsOf = (doc: TextDocument): Set<string> | undefined => {
-    return this.docContextsMap.get(doc.uri);
+    return this.docContexts.get(doc.uri);
   };
 
   /** Returns document's cached keys of its key-value tags. */
-  public getKeysOf = (doc: TextDocument): Set<string> | undefined => {
-    return this.docKeysMap.get(doc.uri);
+  public getKeysOf = (doc: TextDocument): Map<string, Set<string>> | undefined => {
+    return this.docKeyValues.get(doc.uri);
   };
 
   public set = (doc: TextDocument): void => {
     const text: string = doc.getText();
     const tokens: Token[][] = tokenizeText(text);
 
-    this.docTokensMap.set(doc.uri, tokens);
+    this.docTokens.set(doc.uri, tokens);
 
     // TODO: this should be done in a lazy way.
-    this.docProjectsMap.set(doc.uri, new Set<string>());
-    this.docContextsMap.set(doc.uri, new Set<string>());
-    this.docKeysMap.set(doc.uri, new Set<string>());
+    this.docProjects.set(doc.uri, new Set<string>());
+    this.docContexts.set(doc.uri, new Set<string>());
+    this.docKeyValues.set(doc.uri, new Map<string, Set<string>>());
 
     tokens.forEach((tokenLine: Token[]): void => {
       tokenLine.forEach((token: Token): void => {
         switch (token.tokenType) {
           case TodotxtTokenType.Project:
-            this.docProjectsMap.get(doc.uri)?.add(token.content);
+            this.docProjects.get(doc.uri)?.add(token.content);
             break;
           case TodotxtTokenType.Context:
-            this.docContextsMap.get(doc.uri)?.add(token.content);
+            this.docContexts.get(doc.uri)?.add(token.content);
             break;
           case TodotxtTokenType.KeyValue:
-            // @ts-expect-error
-            this.docKeysMap.get(doc.uri)?.add(token.content.match(KEY_WITH_COLON_RE)[0]);
+            let docKeys: Map<string, Set<string>> | undefined;
+            if ((docKeys = this.docKeyValues.get(doc.uri)) !== undefined) {
+              const match = token.content.match(KV_RE);
+              // @ts-expect-error
+              const key: string = match.groups.key;
+              // @ts-expect-error
+              const value: string = match.groups.value;
+
+              if (docKeys.get(key) === undefined)
+                docKeys.set(key, new Set<string>());
+
+              // @ts-expect-error
+              docKeys.get(key).add(value);
+            }
+            break;
         }
       });
     })
@@ -78,9 +92,9 @@ export class TokenStorage {
   };
 
   public delete = (doc: TextDocumentIdentifier): void => {
-    this.docTokensMap.delete(doc.uri);
-    this.docProjectsMap.delete(doc.uri);
-    this.docContextsMap.delete(doc.uri);
-    this.docKeysMap.delete(doc.uri);
+    this.docTokens.delete(doc.uri);
+    this.docProjects.delete(doc.uri);
+    this.docContexts.delete(doc.uri);
+    this.docKeyValues.delete(doc.uri);
   };
 }

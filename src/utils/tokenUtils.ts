@@ -5,14 +5,14 @@ import { KEY_WITH_COLON_RE, KV_RE } from "../parser/regexps";
 /**
  * A helper function which returns `token`'s character end.
  */
-export const getTokenEnd = (token: Token): number => {
+export function getTokenEnd(token: Token): number {
   return token.character + token.content.length;
 };
 
 /**
  * Return a `Range` which `token` takes.
  */
-export const tokenRange = (token: Token): Range => {
+export function tokenRange(token: Token): Range {
   return {
     start: {
       line: token.line,
@@ -28,10 +28,10 @@ export const tokenRange = (token: Token): Range => {
 /**
  * Returns a `Range` between `token1` and `token2`.
  */
-export const rangeBetweenTokens = (
+export function rangeBetweenTokens(
   token1: Token,
   token2: Token,
-): Range => {
+): Range {
   return {
     start: {
       line: token1.line,
@@ -45,47 +45,45 @@ export const rangeBetweenTokens = (
 };
 
 /** Returns a `Range` which the `line` takes. */
-export const lineRange = (tokens: Token[], line: number): Range => {
-  if (tokens.length === 0) {
+export function lineRange(tokens: Token[], line: number): Range {
+    if (tokens.length === 0) {
+        return {
+            start: {
+                line: line,
+                character: 0,
+            }, end: {
+                line: line,
+                character: 0,
+            }
+        };
+    }
     return {
-      start: {
-        line: line,
-        character: 0,
-      }, end: {
-        line: line,
-        character: 0,
-      }
-    }
-  }
-  return {
-    start: {
-      line: tokens[0].line,
-      character: 0,
-    }, end: {
-      line: line,
-      character: getTokenEnd(tokens[tokens.length - 1])
-    }
-  }
-};
+        start: {
+            line: tokens[0].line,
+            character: 0,
+        }, end: {
+            line: line,
+            character: getTokenEnd(tokens[tokens.length - 1])
+        }
+    };
+}
 
-const cmp = (position: Position, token: Token): number => {
-  return (
-    token.character <= position.character &&
-    position.character <= getTokenEnd(token)
-  )
-    ? 0
-    : position.character - token.character;
-};
+function cmp(position: Position, token: Token): number {
+    return (
+        token.character <= position.character &&
+        position.character <= getTokenEnd(token)
+    )
+        ? 0
+        : position.character - token.character;
+}
 
 /**
  * Returns if `position` is pointing to some of the `Token[]`s (not in "whitespace" area of the document).
  */
-export const positionIsInsideToken = (
-  position: Position,
-  token: Token,
-): boolean => {
-  return !cmp(position, token);
-};
+export function positionIsInsideToken(position: Position,
+    token: Token): boolean {
+    return !cmp(position, token);
+}
 
 /**
  * A special type which indicates numeric index of document token and if it is inside one of the tokens.
@@ -103,49 +101,48 @@ export interface TokenPointer {
  * @param forSplice whether an index is needed for token insert (`true`) or to find the token match (`false`).
  * @returns the result `TokenPointer`.
  */
-export const getPositionIndex = (
+export function getPositionIndex(
   lineTokens: Token[],
   position: Position,
-  forSplice: boolean = true,
-): TokenPointer => {
-  if (lineTokens.length === 0) {
-    return {
-      index: 0,
-      isInsideToken: false,
-    } satisfies TokenPointer;
-  }
-
-  let left: number = 0;
-  let right = lineTokens.length - 1;
-
-  // Binary search adaptation for token list,
-  // which supports both searching of existing element index and insertion one.
-  while (left <= right) {
-    let mid: number = Math.floor((left + right) / 2);
-
-    const cmp_: number = cmp(position, lineTokens[mid]);
-    if (cmp_ === 0) {
-      return {
-        index: mid,
-        isInsideToken: true,
-      } as TokenPointer;
-    } else if (cmp_ > 0) {
-      left = mid + 1;
-    } else {
-      right = mid - 1;
+  forSplice: boolean = true
+): TokenPointer {
+    if (lineTokens.length === 0) {
+        return {
+            index: 0,
+            isInsideToken: false,
+        } satisfies TokenPointer;
     }
-  }
 
-  if (forSplice) {
-    const isInside: boolean =
-      left < lineTokens.length && positionIsInsideToken(position, lineTokens[left]);
-    return { index: left, isInsideToken: isInside };
-  } else {
-    return { index: -1, isInsideToken: false };
-  }
-};
+    let left: number = 0;
+    let right = lineTokens.length - 1;
 
-export const getKey = (token: Token): string => {
+    // Binary search adaptation for token list,
+    // which supports both searching of existing element index and insertion one.
+    while (left <= right) {
+        let mid: number = Math.floor((left + right) / 2);
+
+        const cmp_: number = cmp(position, lineTokens[mid]);
+        if (cmp_ === 0) {
+            return {
+                index: mid,
+                isInsideToken: true,
+            } as TokenPointer;
+        } else if (cmp_ > 0) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    if (forSplice) {
+        const isInside: boolean = left < lineTokens.length && positionIsInsideToken(position, lineTokens[left]);
+        return { index: left, isInsideToken: isInside };
+    } else {
+        return { index: -1, isInsideToken: false };
+    }
+}
+
+export function getKey(token: Token): string {
   // @ts-expect-error
   return token.content.match(KEY_WITH_COLON_RE)[0];
 }
@@ -155,7 +152,7 @@ export interface KeyValueSchema {
   value: string
 };
 
-export const getKeyValue = (token: Token): KeyValueSchema => {
+export function getKeyValue(token: Token): KeyValueSchema {
   const match = token.content.match(KV_RE);
   if (!match || (!match.groups))
     throw new Error("Not a key-value tag!");
@@ -163,10 +160,10 @@ export const getKeyValue = (token: Token): KeyValueSchema => {
   return {
     key: match.groups.key,
     value: match.groups.value,
-  }
+  };
 }
 
-export const getTokenUnderPosition = (tokens: Token[][], position: Position): Token | undefined => {
+export function getTokenUnderPosition(tokens: Token[][], position: Position): Token | undefined {
   const tokenPtr: TokenPointer = getPositionIndex(tokens[position.line], position);
   const currentToken: Token = tokens[position.line][tokenPtr.index];
 

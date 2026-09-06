@@ -26,77 +26,71 @@ export const tokenPatternMap: Map<PatternType, RegExp> = new Map<
 /**
  * Returns determined pattern type of token.
  */
-export const determinePatternType = (token: string): PatternType => {
-  for (const [type, regex] of tokenPatternMap) {
-    if (regex.test(token)) return type;
-  }
-  return PatternType.Common;
-};
+export function determinePatternType(token: string): PatternType {
+    for (const [type, regex] of tokenPatternMap) {
+        if (regex.test(token)) return type;
+    }
+    return PatternType.Common;
+}
 
 /**
  * Returns numeric representation of a token type, based on its surrounding context (`line`, `character` and previous `Token[]`'s).
  */
-export const determineTokenType = (
-  content: string,
-  character: number,
-  tokens: Token[],
-): TodotxtTokenType => {
-  let todotxtType: TodotxtTokenType;
-  const idxOnLine: number = tokens.length;
-  let tokenPatternType: PatternType = determinePatternType(content);
+export function determineTokenType(content: string,
+    character: number,
+    tokens: Token[]): TodotxtTokenType {
+    let todotxtType: TodotxtTokenType;
+    const idxOnLine: number = tokens.length;
+    let tokenPatternType: PatternType = determinePatternType(content);
 
-  if (tokenPatternType === PatternType.Date) {
-    if (character === 0) {
-      todotxtType = TodotxtTokenType.CreationDate;
-    } else if (idxOnLine === 1) {
-      const previousToken: Token = tokens[idxOnLine - 1];
-      if (character - getTokenEnd(previousToken) === 1) {
-        const previousTokenTypeName: TodotxtTokenType = previousToken.tokenType;
-        if (previousTokenTypeName === TodotxtTokenType.CompletionMark) {
-          todotxtType = TodotxtTokenType.CompletionDate;
-        } else if (previousTokenTypeName === TodotxtTokenType.Priority) {
-          todotxtType = TodotxtTokenType.CreationDate;
+    if (tokenPatternType === PatternType.Date) {
+        if (character === 0) {
+            todotxtType = TodotxtTokenType.CreationDate;
+        } else if (idxOnLine === 1) {
+            const previousToken: Token = tokens[idxOnLine - 1];
+            if (character - getTokenEnd(previousToken) === 1) {
+                const previousTokenTypeName: TodotxtTokenType = previousToken.tokenType;
+                if (previousTokenTypeName === TodotxtTokenType.CompletionMark) {
+                    todotxtType = TodotxtTokenType.CompletionDate;
+                } else if (previousTokenTypeName === TodotxtTokenType.Priority) {
+                    todotxtType = TodotxtTokenType.CreationDate;
+                } else {
+                    todotxtType = TodotxtTokenType.Common;
+                }
+            } else {
+                todotxtType = TodotxtTokenType.Common;
+            }
+        } else if (idxOnLine === 2) {
+            const secondToken: Token = tokens[idxOnLine - 1];
+            const firstToken: Token = tokens[idxOnLine - 2];
+            if (character - getTokenEnd(secondToken) === 1 &&
+                secondToken.tokenType === TodotxtTokenType.CompletionDate &&
+                secondToken.character - getTokenEnd(firstToken) === 1 &&
+                firstToken.tokenType === TodotxtTokenType.CompletionMark) {
+                todotxtType = TodotxtTokenType.CreationDate;
+            } else {
+                todotxtType = TodotxtTokenType.Common;
+            }
         } else {
-          todotxtType = TodotxtTokenType.Common;
+            todotxtType = TodotxtTokenType.Common;
         }
-      } else {
-        todotxtType = TodotxtTokenType.Common;
-      }
-    } else if (idxOnLine === 2) {
-      const secondToken: Token = tokens[idxOnLine - 1];
-      const firstToken: Token = tokens[idxOnLine - 2];
-      if (
-        character - getTokenEnd(secondToken) === 1 &&
-        secondToken.tokenType === TodotxtTokenType.CompletionDate &&
-        secondToken.character - getTokenEnd(firstToken) === 1 &&
-        firstToken.tokenType === TodotxtTokenType.CompletionMark
-      ) {
-        todotxtType = TodotxtTokenType.CreationDate;
-      } else {
-        todotxtType = TodotxtTokenType.Common;
-      }
     } else {
-      todotxtType = TodotxtTokenType.Common;
+        let todotxtType_: TodotxtTokenType | undefined;
+        if ((todotxtType_ = beginningTokenPatternToTypeMap.get(tokenPatternType))
+            === undefined) {
+            if ((todotxtType_ = tokenPatternToTypeMap.get(tokenPatternType)) === undefined) {
+                todotxtType = TodotxtTokenType.Common;
+            } else {
+                todotxtType = todotxtType_;
+            }
+        } else {
+            if (character === 0) {
+                todotxtType = todotxtType_;
+            } else {
+                todotxtType = TodotxtTokenType.Common;
+            }
+        }
     }
-  } else {
-    let todotxtType_: TodotxtTokenType | undefined;
-    if (
-      (todotxtType_ = beginningTokenPatternToTypeMap.get(tokenPatternType))
-      === undefined
-    ) {
-      if ((todotxtType_ = tokenPatternToTypeMap.get(tokenPatternType)) === undefined) {
-        todotxtType = TodotxtTokenType.Common;
-      } else {
-        todotxtType = todotxtType_;
-      }
-    } else {
-      if (character === 0) {
-        todotxtType = todotxtType_;
-      } else {
-        todotxtType = TodotxtTokenType.Common;
-      }
-    }
-  }
 
-  return todotxtType;
-};
+    return todotxtType;
+}

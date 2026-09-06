@@ -5,7 +5,7 @@
         "language-server",
         "todo.txt"
     ],
-    "version": "0.3-beta",
+    "version": "0.3.1-beta",
     "homepage": "https://github.com/pursvir/todo-ls",
     "description": "Language server implementation for todo.txt files.",
     "license": "MIT",

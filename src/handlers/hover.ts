@@ -38,14 +38,14 @@ const tokenTypeUrls: string[] = [
  * @param content - hovered content.
  * @returns - Markdown text.
  */
-const createHoverContent = (tokenType: number, content: string): string => {
-  const prefix = TodotxtTokenTypes[tokenType];
-  return `\`\`\`todo.txt
+function createHoverContent(tokenType: number, content: string): string {
+    const prefix = TodotxtTokenTypes[tokenType];
+    return `\`\`\`todo.txt
 ${prefix}: ${content}
 \`\`\`
 ___
 [format specs](${tokenTypeUrls[tokenType]})`;
-};
+}
 
 const taskBeginningPatterns: Set<number> = new Set<number>([
   TodotxtTokenType.Priority,
@@ -89,68 +89,64 @@ const getCoverageInterval = (lineTokens: Token[], index: number): IndexInterval 
 /**
  * Returns text inside start-end interval of `Token[]` array.
  */
-const getTextInsideInterval = (
-  tokens: Token[],
-  interval: IndexInterval,
-): string => {
-  let resultText: string = tokens[interval.start].content;
-  for (let i: number = interval.start + 1; i <= interval.end; i++) {
-    /* NOTE: text tokenizer doesn't count which exact whitespaces split tokens.
-  	 Task description inside hover response may be incorrect if \t are used inside task text. */
-    resultText +=
-      " ".repeat(tokens[i].character - getTokenEnd(tokens[i - 1])) +
-      tokens[i].content;
-  }
-  return resultText;
-};
-
-export const registerHoverHandler = (
-  connection: Connection,
-  documents: TextDocuments<TextDocument>,
-): void => {
-  connection.onHover((params: TextDocumentPositionParams): Hover | null => {
-    connection.console.debug(
-      `New hover event on line ${params.position.line} character ${params.position.character}`,
-    );
-    const doc = documents.get(params.textDocument.uri);
-    if (!doc) return null;
-
-    const tokens = storage.get(doc);
-    if (!tokens) {
-      connection.console.debug(`No tokens for ${doc.uri}!`);
-      return null;
+function getTextInsideInterval(tokens: Token[],
+    interval: IndexInterval): string {
+    let resultText: string = tokens[interval.start].content;
+    for (let i: number = interval.start + 1; i <= interval.end; i++) {
+        /* NOTE: text tokenizer doesn't count which exact whitespaces split tokens.
+         Task description inside hover response may be incorrect if \t are used inside task text. */
+        resultText +=
+            " ".repeat(tokens[i].character - getTokenEnd(tokens[i - 1])) +
+            tokens[i].content;
     }
+    return resultText;
+}
 
-    const tokenPtr: TokenPointer = getPositionIndex(
-      tokens[params.position.line], params.position, false,
-    );
+export function registerHoverHandler(connection: Connection,
+    documents: TextDocuments<TextDocument>): void {
+    connection.onHover((params: TextDocumentPositionParams): Hover | null => {
+        connection.console.debug(
+            `New hover event on line ${params.position.line} character ${params.position.character}`
+        );
+        const doc = documents.get(params.textDocument.uri);
+        if (!doc) return null;
 
-    const currentToken: Token = tokens[params.position.line][tokenPtr.index];
-    if (!currentToken) return null;
+        const tokens = storage.get(doc);
+        if (!tokens) {
+            connection.console.debug(`No tokens for ${doc.uri}!`);
+            return null;
+        }
 
-    const contextInterval: IndexInterval = getCoverageInterval(
-      tokens[params.position.line],
-      tokenPtr.index,
-    );
+        const tokenPtr: TokenPointer = getPositionIndex(
+            tokens[params.position.line], params.position, false
+        );
 
-    // TODO: create a key-value (Map<number, string>) cache for hover contents
-    const content: string = createHoverContent(
-      currentToken.tokenType,
-      currentToken.tokenType === 0
-        ? getTextInsideInterval(tokens[params.position.line], contextInterval)
-        : currentToken.content,
-    );
-    const range: Range = rangeBetweenTokens(
-      tokens[params.position.line][contextInterval.start],
-      tokens[params.position.line][contextInterval.end],
-    );
+        const currentToken: Token = tokens[params.position.line][tokenPtr.index];
+        if (!currentToken) return null;
 
-    return {
-      contents: {
-        kind: "markdown",
-        value: content,
-      },
-      range: range,
-    } as Hover;
-  });
-};
+        const contextInterval: IndexInterval = getCoverageInterval(
+            tokens[params.position.line],
+            tokenPtr.index
+        );
+
+        // TODO: create a key-value (Map<number, string>) cache for hover contents
+        const content: string = createHoverContent(
+            currentToken.tokenType,
+            currentToken.tokenType === 0
+                ? getTextInsideInterval(tokens[params.position.line], contextInterval)
+                : currentToken.content
+        );
+        const range: Range = rangeBetweenTokens(
+            tokens[params.position.line][contextInterval.start],
+            tokens[params.position.line][contextInterval.end]
+        );
+
+        return {
+            contents: {
+                kind: "markdown",
+                value: content,
+            },
+            range: range,
+        } as Hover;
+    });
+}

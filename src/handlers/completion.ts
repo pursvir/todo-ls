@@ -22,20 +22,31 @@ import {
   DATE_CONTAINING_RE,
   INCOMPLETE_DATE_BEGINNING_RE,
   INCOMPLETE_PRIORITY_BEGINNING_RE,
+  KV_RE,
   PRIORITY_CONTAINING_RE,
   PRIORITY_RE,
   PROJECT_SYMBOL_RE,
 } from "../parser/regexps";
 
+enum CompletionType {
+  Common = 0,
+  Priority = 1,
+  Date = 2,
+  CompletionMark = 3,
+  Project = 4,
+  Context = 5,
+  Key = 6,
+  Value = 7,
+};
 
-// TODO: make those kinds configurable
-const kindMap: Map<PatternType, number> = new Map<PatternType, number>([
-  [PatternType.Priority, CompletionItemKind.Keyword],
-  [PatternType.Project, CompletionItemKind.Interface],
-  [PatternType.Context, CompletionItemKind.Color],
-  [PatternType.KeyValue, CompletionItemKind.Keyword]
+// TODO: make those kinds configurable via user's config
+const kindMap: Map<CompletionType, number> = new Map<CompletionType, number>([
+  [CompletionType.Priority, CompletionItemKind.Keyword],
+  [CompletionType.Project, CompletionItemKind.Interface],
+  [CompletionType.Context, CompletionItemKind.Color],
+  [CompletionType.Key, CompletionItemKind.Keyword],
+  [CompletionType.Value, CompletionItemKind.Keyword],
 ]);
-
 
 /** Intended creation date token character offset inside the line representing a task with priority. */
 const CREATION_DATE_AFTER_PRIORITY_CHAR: number = 4;
@@ -45,7 +56,7 @@ const CREATION_DATE_AFTER_COMPLETION_DATE_CHAR: number = 13;
 const COMPLETION_DATE_AFTER_COMPLETION_MARK_CHAR: number = 2;
 
 
-const getKind = (pattern: PatternType | undefined): CompletionItemKind => {
+function getKind(pattern: CompletionType | undefined): CompletionItemKind {
   let result: number = 0;
   if (pattern === undefined) return result as CompletionItemKind;
 
@@ -54,13 +65,13 @@ const getKind = (pattern: PatternType | undefined): CompletionItemKind => {
     result = kind;
 
   return result as CompletionItemKind;
-};
+}
 
-const generatePriorityItems = (
+function generatePriorityItems(
   insertPos: Position, offset: number = 0,
   suffix: string = " ",
-): CompletionItem[] => {
-  // TODO: define priority set via config options
+): CompletionItem[] {
+  // TODO: define priority range via config options
   return ["A", "B", "C", "D"].map(
     (letter: string) => {
       const label: string = `(${letter}) `;
@@ -119,7 +130,7 @@ function generateMinDate(prefix: string): string {
   if (len < 9)
     result += "0";
   if (len < 10)
-    result += 1;
+    result += "1";
 
   return result;
 }
@@ -129,13 +140,13 @@ function generateMinDate(prefix: string): string {
  * Returns list of `CompletionItem`s with ISO 8601 date texts.
  * If current token's prefix is today date, returns today, tomorrow and each day before until a week ago.
  */
-const generateDateItems = (
+function generateDateItems(
   datePart: string,
   insertPos: Position,
   offset: number,
   prefix: string = "",
   suffix: string = " ",
-): CompletionItem[] => {
+): CompletionItem[] {
   const range: Range = {
     start: insertPos,
     end: insertPos,
@@ -190,40 +201,57 @@ const generateDateItems = (
           sortText: `${i + 1}`,
           textEdit: {
             range: range,
-            newText: `${text} `.slice(offset),
+            newText: `${text}${suffix}`.slice(offset),
           }
         }
       })
   ];
-};
-
-const isTypedAsFirst = (idx: number, token: Token): boolean => {
-  return idx === 0 && token.character === 0;
 }
 
-const getProbableKeys = (doc: TextDocument, text: string): Set<string> => {
+/**
+ * Returns set of key strings with semiconols with `text` prefix,
+ * based on existing key-value tags in the `doc` TextDocument.
+ */
+function getProbableKeys(doc: TextDocument, text: string): Set<string> {
   const res: Set<string> = new Set<string>();
 
-  const keys: Set<string> | undefined = storage.getKeysOf(doc);
-  if (!keys)
+  const kvs: Map<string, Set<string>> | undefined = storage.getKeysOf(doc);
+  if (!kvs)
     return res;
 
-  for (const key of keys) {
-    if (key.startsWith(text)) {
-      res.add(key);
-    }
+  for (const key of kvs.keys()) {
+    if (key.startsWith(text))
+      res.add(`${key}:`);
   }
 
   return res;
 }
 
-export const registerCompletionHandler = (
-  connection: Connection,
-  documents: TextDocuments<TextDocument>,
-): void => {
-  connection.onCompletion((params: CompletionParams): CompletionItem[] => {
-    // TODO: is it possible to make todo-ls not conflict with IDE's built-in completions (when just typing letters)?
+/**
+ * Returns existing values for `key`,
+ * based on existing key-value tags in the `doc` TextDocument.
+ */
+function getValuesForKey(doc: TextDocument, key: string): Set<string> {
+  let res: Set<string> | undefined = new Set<string>();
 
+  const kvs: Map<string, Set<string>> | undefined = storage.getKeysOf(doc);
+  if (!kvs)
+    return res;
+
+  if ((res = kvs.get(key)) === undefined) {
+    return new Set<string>();
+  } else {
+    return res;
+  }
+}
+
+function isTypedAsFirst(idx: number, token: Token): boolean {
+  return idx === 0 && token.character === 0;
+}
+
+export function registerCompletionHandler(connection: Connection,
+  documents: TextDocuments<TextDocument>): void {
+  connection.onCompletion((params: CompletionParams): CompletionItem[] => {
     if (params.context?.triggerKind === 3) {
       // unsupported.
       return [];
@@ -235,7 +263,7 @@ export const registerCompletionHandler = (
     const tokens: Token[][] = storage.get(doc);
     if (!tokens) return [];
 
-    let completionTriggerType: PatternType = PatternType.Common;
+    let completionTriggerType: CompletionType = CompletionType.Common;
 
     const tokenPtr: TokenPointer = getPositionIndex(tokens[params.position.line], params.position);
     const currentToken: Token = tokens[params.position.line][tokenPtr.index];
@@ -252,35 +280,35 @@ export const registerCompletionHandler = (
 
       if (triggerChar === "(") {
         if (params.position.character === 1) {
-          completionTriggerType = PatternType.Priority;
+          completionTriggerType = CompletionType.Priority;
         } else {
-          completionTriggerType = PatternType.Common;
+          completionTriggerType = CompletionType.Common;
         }
-      } else if (!(currentToken.character < params.position.character)) {
+        // if triggerCharacter is the first typed symbol
+      } else if (currentToken.content.length === 1) {
         if (PROJECT_SYMBOL_RE.test(triggerChar)) {
-          completionTriggerType = PatternType.Project;
+          completionTriggerType = CompletionType.Project;
         } else if (CONTEXT_SYMBOL_RE.test(triggerChar)) {
-          completionTriggerType = PatternType.Context;
+          completionTriggerType = CompletionType.Context;
         } else {
-          completionTriggerType = PatternType.Common;
+          completionTriggerType = CompletionType.Common;
         }
       } else {
-        completionTriggerType = PatternType.Common;
+        completionTriggerType = CompletionType.Common;
       }
     } else if (params.context?.triggerKind === 1) {
       switch (currentToken.tokenType) {
         case TodotxtTokenType.Project:
-          completionTriggerType = PatternType.Project;
+          completionTriggerType = CompletionType.Project;
           break;
         case TodotxtTokenType.Context:
-          completionTriggerType = PatternType.Context;
+          completionTriggerType = CompletionType.Context;
           break;
         default:
           const idxOnLine: number = getPositionIndex(tokens[params.position.line], params.position, false).index;
           let match: RegExpMatchArray | null;
 
-          if (
-            (match = currentToken.content.match(INCOMPLETE_PRIORITY_BEGINNING_RE)) !== null
+          if ((match = currentToken.content.match(INCOMPLETE_PRIORITY_BEGINNING_RE)) !== null
             && (
               isTypedAsFirst(idxOnLine, currentToken)
               || (
@@ -293,18 +321,16 @@ export const registerCompletionHandler = (
                   )
                 )
               )
-            )
-          ) {
+            )) {
             // @ts-expect-error
             offset = match.groups.priorBegin.length;
-            completionTriggerType = PatternType.Priority;
+            completionTriggerType = CompletionType.Priority;
             noWhitespaceRequired = (
               (tokenPtr.index === 0 && tokens[currentToken.line].length > 1)
               // @ts-expect-error
               && !(match.groups.priorBegin.length === currentToken.content.length)
             );
-          } else if (
-            (match = currentToken.content.match(INCOMPLETE_DATE_BEGINNING_RE)) !== null
+          } else if ((match = currentToken.content.match(INCOMPLETE_DATE_BEGINNING_RE)) !== null
             && ((
               isTypedAsFirst(idxOnLine, currentToken)
               && (!DATE_CONTAINING_RE.test(currentToken.content))
@@ -325,9 +351,8 @@ export const registerCompletionHandler = (
                   && tokens[params.position.line][1].tokenType === TodotxtTokenType.CompletionDate
                 )
               )
-            )
-          ) {
-            completionTriggerType = PatternType.Date;
+            )) {
+            completionTriggerType = CompletionType.Date;
             offset = match[0].length;
             noWhitespaceRequired = (
               (tokenPtr.index === 0 && tokens[currentToken.line].length > 1)
@@ -338,22 +363,22 @@ export const registerCompletionHandler = (
                 && tokens[currentToken.line][2].character >= 4
               )
             );
-          // TODO: somehow handle key-value completions
+          } else if ((itemSet = getProbableKeys(doc, currentToken.content)).size !== 0) {
+            completionTriggerType = CompletionType.Key;
+          } else if (currentToken.tokenType === TodotxtTokenType.KeyValue) {
+            completionTriggerType = CompletionType.Value;
+            itemSet = getValuesForKey(doc,
+              // @ts-expect-error
+              currentToken.content.match(KV_RE).groups.key);
           } else {
-            itemSet = getProbableKeys(doc, currentToken.content);
-            if (
-              itemSet.size !== 0
-            ) {
-              completionTriggerType = PatternType.KeyValue;
-            } else {
-              completionTriggerType = PatternType.Common;
-            }
+            completionTriggerType = CompletionType.Common;
           }
       }
     }
 
     let detail: string;
-    let isProjOrCtx: boolean = true;
+    /** Is either a project or a context. */
+    let isPrefixedMetadata: boolean = true;
 
     const insertPos: Position = {
       line: currentToken.line,
@@ -361,27 +386,32 @@ export const registerCompletionHandler = (
     };
 
     switch (completionTriggerType) {
-      case PatternType.Priority:
+      // TODO: make completions for each token type configurable via user's config.
+      case CompletionType.Priority:
         // @ts-expect-error
         return generatePriorityItems(insertPos, offset, noWhitespaceRequired ? "" : " ");
-      case PatternType.Date:
+      case CompletionType.Date:
         // TODO: may return invalid dates, e.g. 2020-22-33
         //  set up some validity checker
         return generateDateItems(
           currentToken.content, insertPos,
           offset, datePrefix,
           // @ts-expect-error
-          noWhitespaceRequired ? "" : " ",
+          noWhitespaceRequired ? "" : " "
         );
-      case PatternType.Project:
+      case CompletionType.Project:
         detail = "project tag";
         break;
-      case PatternType.Context:
+      case CompletionType.Context:
         detail = "context tag";
         break;
-      case PatternType.KeyValue:
+      case CompletionType.Key:
         detail = "key-value tag";
-        isProjOrCtx = false;
+        isPrefixedMetadata = false;
+        break;
+      case CompletionType.Value:
+        detail = "key-value tag";
+        isPrefixedMetadata = false;
         break;
       default:
         // shouldn't be here.
@@ -390,9 +420,8 @@ export const registerCompletionHandler = (
 
     const kind: CompletionItemKind = getKind(completionTriggerType);
 
-    if (isProjOrCtx) {
-      const itemSet_: Set<string> | undefined =
-        completionTriggerType === PatternType.Project
+    if (isPrefixedMetadata) {
+      const itemSet_: Set<string> | undefined = completionTriggerType === CompletionType.Project
         ? storage.getProjsOf(doc)
         : storage.getCtxsOf(doc);
 
@@ -401,9 +430,10 @@ export const registerCompletionHandler = (
 
       // A dumb solution to prevent including "@" and "+" on their own into completion items list.
       // Don't understand yet, where it's appeared there from...
-      for (const item of itemSet_) {
-        if (item.length === 1) itemSet_.delete(item);
-      }
+      // TODO: get rid of this.
+      // for (const item of itemSet_) {
+      //   if (item.length === 1) itemSet_.delete(item);
+      // }
 
       itemSet = itemSet_;
     }
@@ -414,8 +444,8 @@ export const registerCompletionHandler = (
         detail: detail,
         kind: kind,
         // TODO: why does it behave like this ??
-        insertText: isProjOrCtx ? word.slice(1) : word,
+        insertText: isPrefixedMetadata ? word.slice(1) : word,
       } satisfies CompletionItem;
     }) satisfies CompletionItem[];
   });
-};
+}

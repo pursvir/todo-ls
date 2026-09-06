@@ -8,7 +8,7 @@ export interface DiagnosticsConfig {
   severity: DiagnosticSeverity,
 }
 
-// TODO: map this from user's config
+// TODO: map those human-readable strings into DiagnosticSeverity numbers when loading user's config.
 const severityMapper: Map<string, DiagnosticSeverity> = new Map<string, DiagnosticSeverity>([
   ["error", DiagnosticSeverity.Error],
   ["warning", DiagnosticSeverity.Warning],
@@ -51,20 +51,6 @@ export type TodolsConfig = {
     /** Triggered by empty lines in your todo.txt file (\n\n). */
     emptyLines: DiagnosticsConfig,
   }
-}
-
-export const mapToDomainConfig = (config: any): TodolsConfig => {
-  // config.diagnostics.forEach((subcfg) => {
-
-  // });
-  // foreach config.diagnostics
-  // if (mapped = severityMapper.get(severity) === undefined)
-  //  take from defaultConfig
-  // else
-  //  mapped
-  //
-
-  return config;
 }
 
 /** The default todo-ls config, being applied if no config file is found or if it's invalid. */

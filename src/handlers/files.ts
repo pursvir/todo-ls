@@ -10,59 +10,53 @@ import { analyzeDocument } from "../diagnostics/analysis";
 import { TodolsConfig } from "../config";
 
 
-export const registerDocumentOpenHandler = (
-  connection: Connection,
-  documents: TextDocuments<TextDocument>,
-  config: TodolsConfig,
-): void => {
-  documents.onDidOpen((change: TextDocumentChangeEvent<TextDocument>): void => {
-    const doc: TextDocument | undefined = documents.get(change.document.uri);
-    if (!doc) return;
+export function registerDocumentOpenHandler(connection: Connection,
+    documents: TextDocuments<TextDocument>,
+    config: TodolsConfig): void {
+    documents.onDidOpen((change: TextDocumentChangeEvent<TextDocument>): void => {
+        const doc: TextDocument | undefined = documents.get(change.document.uri);
+        if (!doc) return;
 
-    storage.set(doc);
+        storage.set(doc);
 
-    if (config.features.diagnosticsEnabled) {
-      const diagnostics = analyzeDocument(change.document);
+        if (config.features.diagnosticsEnabled) {
+            const diagnostics = analyzeDocument(change.document);
 
-      connection.sendDiagnostics({
-        uri: change.document.uri,
-        diagnostics: diagnostics,
-      });
-    }
-  });
-};
+            connection.sendDiagnostics({
+                uri: change.document.uri,
+                diagnostics: diagnostics,
+            });
+        }
+    });
+}
 
-export const registerDocumentChangeHandler = (
-  connection: Connection,
-  documents: TextDocuments<TextDocument>,
-  config: TodolsConfig,
-): void => {
-  documents.onDidChangeContent(
-    (change: TextDocumentChangeEvent<TextDocument>): void => {
-      const doc: TextDocument | undefined = documents.get(change.document.uri);
-      if (!doc) return;
+export function registerDocumentChangeHandler(connection: Connection,
+    documents: TextDocuments<TextDocument>,
+    config: TodolsConfig): void {
+    documents.onDidChangeContent(
+        (change: TextDocumentChangeEvent<TextDocument>): void => {
+            const doc: TextDocument | undefined = documents.get(change.document.uri);
+            if (!doc) return;
 
-      // TODO: delta update is intended to be here...
-      storage.set(doc);
+            // TODO: delta update is intended to be here...
+            storage.set(doc);
 
-      if (config.features.diagnosticsEnabled) {
-        const diagnostics = analyzeDocument(change.document);
+            if (config.features.diagnosticsEnabled) {
+                const diagnostics = analyzeDocument(change.document);
 
-        connection.sendDiagnostics({
-          uri: change.document.uri,
-          diagnostics: diagnostics,
-        });
-      }
-    },
-  );
-};
+                connection.sendDiagnostics({
+                    uri: change.document.uri,
+                    diagnostics: diagnostics,
+                });
+            }
+        }
+    );
+}
 
-export const registerDocumentCloseHandler = (
-  documents: TextDocuments<TextDocument>,
-): void => {
-  documents.onDidClose(
-    (change: TextDocumentChangeEvent<TextDocument>): void => {
-      storage.delete(change.document);
-    }
-  );
-};
+export function registerDocumentCloseHandler(documents: TextDocuments<TextDocument>): void {
+    documents.onDidClose(
+        (change: TextDocumentChangeEvent<TextDocument>): void => {
+            storage.delete(change.document);
+        }
+    );
+}
