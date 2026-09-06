@@ -3,43 +3,41 @@ import {
   InitializeResult,
   TextDocumentSyncKind,
   Connection,
+  CodeActionKind,
 } from "vscode-languageserver/node";
 
-import { TodotxtTokenTypes } from "../parser/tokenTypes";
-import { NAME, VERSION } from "../version";
+import { NAME, VERSION } from "../info";
 
-export const registerInitializeHandler = (connection: Connection) => {
-  connection.onInitialize((params: InitializeParams): InitializeResult => {
-    const capabilities = params.capabilities;
+export let initOptionsConfig: any;
 
-    const initResult: InitializeResult = {
-      capabilities: {
-        textDocumentSync: TextDocumentSyncKind.Incremental,
-        hoverProvider: true,
-        semanticTokensProvider: {
-          legend: {
-            tokenTypes: [...TodotxtTokenTypes],
-            tokenModifiers: [],
-          },
-          full: true,
-        },
-        completionProvider: {
-          triggerCharacters: ["@", "+"],
-        },
-      },
-      serverInfo: {
-        name: NAME,
-        version: VERSION,
-      },
-    };
+export function registerInitializeHandler(connection: Connection): void {
+    connection.onInitialize((params: InitializeParams): InitializeResult => {
+        const initResult: InitializeResult = {
+            capabilities: {
+                textDocumentSync: TextDocumentSyncKind.Incremental,
+                hoverProvider: true,
+                completionProvider: {
+                    triggerCharacters: ["(", "@", "+"],
+                },
+                codeActionProvider: {
+                    resolveProvider: false,
+                    codeActionKinds: [CodeActionKind.QuickFix],
+                }
+            },
+            serverInfo: {
+                name: NAME,
+                version: VERSION,
+            },
+        };
 
-    if (!!(capabilities.workspace && capabilities.workspace.workspaceFolders))
-      initResult.capabilities.workspace = {
-        workspaceFolders: {
-          supported: true,
-        },
-      };
+        // if (capabilities.workspace && capabilities.workspace.workspaceFolders)
+        //   initResult.capabilities.workspace = {
+        //     workspaceFolders: {
+        //       supported: true,
+        //     },
+        //   };
+        initOptionsConfig = params.initializationOptions;
 
-    return initResult;
-  });
-};
+        return initResult;
+    });
+}

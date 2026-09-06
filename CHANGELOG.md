@@ -1,3 +1,17 @@
+0.3.1 (09.06.2026)
+
+- Fixed various bugs in completion handler
+- Add completions for documents' key-value tags
+
+0.3 (08.06.26)
+
+- Complete token format refactoring, caching document tokens.
+- Fixed various lexer errors.
+- Add document diagnostics, analyzing, by default:
+    - there are no creation dates later than today
+    - there are completion dates for completed tasks
+- Add basic config file.
+
 0.2 (16.11.25)
 
 - Suggestions for +projects and @contexts.

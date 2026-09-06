@@ -1,5 +1,6 @@
-const ROWS_RE: RegExp = /\r?\n/;
+const LINES_RE: RegExp = /\r?\n/;
 
-export const getRows = (text: string): string[] => {
-  return text.split(ROWS_RE);
-};
+/** A helper function for splitting `text` by newlines. */
+export function getLines(text: string): string[] {
+    return text.split(LINES_RE);
+}

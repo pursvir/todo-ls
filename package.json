@@ -2,11 +2,12 @@
     "name": "todo-ls",
     "keywords": [
         "lsp",
+        "language-server",
         "todo.txt"
     ],
-    "version": "0.2.0",
+    "version": "0.3.1-beta",
     "homepage": "https://github.com/pursvir/todo-ls",
-    "description": "LSP server for todo.txt files",
+    "description": "Language server implementation for todo.txt files.",
     "license": "MIT",
     "author": "pursvir",
     "type": "commonjs",
@@ -14,30 +15,46 @@
         "type": "git",
         "url": "https://github.com/pursvir/todo-ls"
     },
+    "bugs": {
+        "url": "https://github.com/pursvir/todo-ls/issues"
+    },
     "scripts": {
-        "preinstall": "tsc",
-        "postinstall": "sed -i '1i #!/usr/bin/env node' ./dist/index.js && chmod +x ./dist/index.js",
-        "build": "tsc",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "build": "tsc && npx add-shebang",
+        "format": "npx prettier --write src/",
+        "lint": "npx eslint",
+        "test": "npx jest"
     },
     "dependencies": {
         "node-fetch": "^2.7.0",
-        "vscode-languageclient": "^9.0.1",
+        "vscode-languageclient": "^10.1.0",
         "vscode-languageserver": "^9.0.1",
-        "vscode-languageserver-textdocument": "^1.0.12"
+        "vscode-languageserver-textdocument": "^1.0.13"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^26.1.2",
         "@types/node-fetch": "^2.6.13",
         "@types/vscode": "^1.105.0",
+        "@typescript-eslint/eslint-plugin": "^8.66.0",
+        "@typescript-eslint/parser": "^8.60.1",
+        "eslint": "^10.4.1",
+        "prettier": "^3.8.3",
+        "ts-jest": "^29.4.12",
         "typescript": "^5.9.3"
     },
     "files": [
-        "/dist",
+        "dist/",
+        "README.md",
         "LICENSE",
         "CHANGELOG.md"
     ],
-    "main": "index.js",
+    "main": "./dist/index.js",
     "bin": {
         "todo-ls": "./dist/index.js"
+    },
+    "allowScripts": {
+        "unrs-resolver@1.12.2": true,
+        "todo-ls": true
     }
 }

@@ -1,110 +1,152 @@
 import {
   Connection,
   Hover,
-  Position,
   TextDocuments,
   TextDocumentPositionParams,
   Range,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { TodotxtTokenType } from "../parser/tokenTypes";
+import { TodotxtTokenType, Token } from "../parser/tokenTypes";
 import {
-  IndexedToken,
-  tokenizeLine,
-  getTokenAtPosition,
-} from "../parser/tokenizer";
-import {
-  determineTodotxtTokenType,
-  getDescriptionStart,
-} from "../parser/lexer";
-import { getRows } from "../parser/utils";
+  getPositionIndex,
+  getTokenEnd,
+  rangeBetweenTokens,
+} from "../utils/tokenUtils";
+import { TokenPointer } from "../utils/tokenUtils";
+import { TodotxtTokenTypes } from "../parser/tokenTypes";
+import { storage } from "../server";
 
-const TODOTXT_DOC_URL =
-  "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
-const tokenTypeDocUrlMap: Record<TodotxtTokenType, string> = {
-  completionMark: `${TODOTXT_DOC_URL}#complete-tasks-2-format-rules`,
-  priority: `${TODOTXT_DOC_URL}#rule-1-if-priority-exists-it-always-appears-first`,
-  creationDate: `${TODOTXT_DOC_URL}#rule-2-a-tasks-creation-date-may-optionally-appear-directly-after-priority-and-a-space`,
-  completionDate: `${TODOTXT_DOC_URL}#rule-2-the-date-of-completion-appears-directly-after-the-x-separated-by-a-space`,
-  project: `${TODOTXT_DOC_URL}#project`,
-  context: `${TODOTXT_DOC_URL}#context`,
-  keyValue: `${TODOTXT_DOC_URL}#additional-file-format-definitions`,
-  description: `${TODOTXT_DOC_URL}#todotxt-format-rules`,
-};
 
-const createHoverContent = (
-  token: string,
-  tokenType: TodotxtTokenType,
-): string => {
-  return `\`\`\`todo.txt
-(${tokenType}) ${token}
+const DOC_URL_ROOT: string = "https://github.com/todotxt/todo.txt?tab=readme-ov-file";
+
+// String indexes correspond to tokenType numbers.
+const tokenTypeUrls: string[] = [
+  `${DOC_URL_ROOT}#todotxt-format-rules`,
+  `${DOC_URL_ROOT}#rule-1-if-priority-exists-it-always-appears-first`,
+  `${DOC_URL_ROOT}#rule-2-a-tasks-creation-date-may-optionally-appear-directly-after-priority-and-a-space`,
+  `${DOC_URL_ROOT}#rule-2-the-date-of-completion-appears-directly-after-the-x-separated-by-a-space`,
+  `${DOC_URL_ROOT}#complete-tasks-2-format-rules`,
+  `${DOC_URL_ROOT}#project`,
+  `${DOC_URL_ROOT}#context`,
+  `${DOC_URL_ROOT}#additional-file-format-definitions`,
+];
+
+/**
+ * Returns Markdown text for hover event, including token's type, content and format specification.
+ * @param tokenType - token's type.
+ * @param content - hovered content.
+ * @returns - Markdown text.
+ */
+function createHoverContent(tokenType: number, content: string): string {
+    const prefix = TodotxtTokenTypes[tokenType];
+    return `\`\`\`todo.txt
+${prefix}: ${content}
 \`\`\`
 ___
-[Format spec](${tokenTypeDocUrlMap[tokenType]})`;
-};
+[format specs](${tokenTypeUrls[tokenType]})`;
+}
 
-const determineTokenRange = (
-  token: IndexedToken,
-  tokenType: TodotxtTokenType,
-  rows: string[],
-  position: Position,
-): Range => {
-  let start: number, end: number;
-  if (tokenType !== "description") {
-    start = token.start;
-    end = token.start + token.token.length;
-  } else {
-    start = getDescriptionStart(rows[position.line]);
-    end = rows[position.line].length;
-  }
-  return {
-    start: { line: position.line, character: start } as Position,
-    end: { line: position.line, character: end } as Position,
-  };
-};
+const taskBeginningPatterns: Set<number> = new Set<number>([
+  TodotxtTokenType.Priority,
+  TodotxtTokenType.CreationDate,
+  TodotxtTokenType.CompletionDate,
+  TodotxtTokenType.CompletionMark,
+]);
 
-export const registerHoverHandler = (
-  connection: Connection,
-  documents: TextDocuments<TextDocument>,
-): void => {
-  connection.onHover((params: TextDocumentPositionParams): Hover | null => {
-    const doc = documents.get(params.textDocument.uri);
-    if (!doc) return null;
+/**
+ * A special type for `Token[]` interval (start-end indexes).
+ */
+interface IndexInterval {
+  start: number;
+  end: number;
+}
 
-    const rows: string[] = getRows(doc.getText());
-    const row: string = rows[params.position.line];
-
-    const tokens: IndexedToken[] = tokenizeLine(row);
-    const token: IndexedToken = getTokenAtPosition(
-      tokens,
-      params.position.character,
-    );
-    if (!token) return null;
-
-    let tokenType: TodotxtTokenType = determineTodotxtTokenType(token, tokens);
-    const tokenRange: Range = determineTokenRange(
-      token,
-      tokenType,
-      rows,
-      params.position,
-    );
-
-    const content: string = createHoverContent(
-      tokenType === "description"
-        ? rows[params.position.line].slice(
-            getDescriptionStart(rows[params.position.line]),
-          )
-        : token.token,
-      tokenType,
-    );
+/**
+ * Returns `IndexInterval`, indicating start and end of hover context inside `Token[]` array.
+ * If common text is hovered, then index interval is returned for the whole task description.
+ */
+const getCoverageInterval = (lineTokens: Token[], index: number): IndexInterval => {
+  if (lineTokens[index].tokenType === 0) {
+    for (
+      ;
+      index > 0 && (!taskBeginningPatterns.has(lineTokens[index - 1].tokenType));
+      index--
+    ) { }
 
     return {
-      contents: {
-        kind: "markdown",
-        value: content,
-      },
-      range: tokenRange,
-    };
-  });
+      start: index,
+      end: lineTokens.length - 1,
+    }
+  } else {
+    return {
+      start: index,
+      end: index,
+    }
+  }
 };
+
+/**
+ * Returns text inside start-end interval of `Token[]` array.
+ */
+function getTextInsideInterval(tokens: Token[],
+    interval: IndexInterval): string {
+    let resultText: string = tokens[interval.start].content;
+    for (let i: number = interval.start + 1; i <= interval.end; i++) {
+        /* NOTE: text tokenizer doesn't count which exact whitespaces split tokens.
+         Task description inside hover response may be incorrect if \t are used inside task text. */
+        resultText +=
+            " ".repeat(tokens[i].character - getTokenEnd(tokens[i - 1])) +
+            tokens[i].content;
+    }
+    return resultText;
+}
+
+export function registerHoverHandler(connection: Connection,
+    documents: TextDocuments<TextDocument>): void {
+    connection.onHover((params: TextDocumentPositionParams): Hover | null => {
+        connection.console.debug(
+            `New hover event on line ${params.position.line} character ${params.position.character}`
+        );
+        const doc = documents.get(params.textDocument.uri);
+        if (!doc) return null;
+
+        const tokens = storage.get(doc);
+        if (!tokens) {
+            connection.console.debug(`No tokens for ${doc.uri}!`);
+            return null;
+        }
+
+        const tokenPtr: TokenPointer = getPositionIndex(
+            tokens[params.position.line], params.position, false
+        );
+
+        const currentToken: Token = tokens[params.position.line][tokenPtr.index];
+        if (!currentToken) return null;
+
+        const contextInterval: IndexInterval = getCoverageInterval(
+            tokens[params.position.line],
+            tokenPtr.index
+        );
+
+        // TODO: create a key-value (Map<number, string>) cache for hover contents
+        const content: string = createHoverContent(
+            currentToken.tokenType,
+            currentToken.tokenType === 0
+                ? getTextInsideInterval(tokens[params.position.line], contextInterval)
+                : currentToken.content
+        );
+        const range: Range = rangeBetweenTokens(
+            tokens[params.position.line][contextInterval.start],
+            tokens[params.position.line][contextInterval.end]
+        );
+
+        return {
+            contents: {
+                kind: "markdown",
+                value: content,
+            },
+            range: range,
+        } as Hover;
+    });
+}
